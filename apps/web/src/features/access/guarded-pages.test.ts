@@ -32,6 +32,12 @@ mock.module(join(import.meta.dir, '../../lib/access.ts'), () => ({
 mock.module(join(import.meta.dir, '../../lib/request-session.ts'), () => ({
   requestIdentity: async () => ({ state: 'anonymous' }),
 }));
+// Pages that read through an API route (`/app`'s project list) get an empty
+// answer instead of the request's headers and the process route table; the
+// guard has already run by then.
+mock.module(join(import.meta.dir, '../../lib/request-route.ts'), () => ({
+  readRoute: async () => Response.json({ projects: [] }),
+}));
 // The settings screen's client component is not under test here; loading it
 // would only add code this suite never runs.
 mock.module(
