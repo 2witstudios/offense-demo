@@ -12,6 +12,7 @@ import {
   uniqueName,
   sessionUsername,
 } from './support/accounts';
+import { displayNamePattern } from './support/brand';
 import { reachSentState, requestConfirmLink } from './support/confirm-page';
 import { changeEmail, claimUsername, declineByKeyboard } from './support/forms';
 
@@ -147,7 +148,10 @@ test.describe('with JavaScript off', () => {
       page.getByRole('heading', { name: /can no longer be used/i }),
     ).toBeVisible();
     const continueLink = page.getByRole('link', {
-      name: /already signed in\? continue to offense-demo/i,
+      name: new RegExp(
+        `already signed in\\? continue to ${displayNamePattern}`,
+        'i',
+      ),
     });
     await continueLink.click();
     await expect(page).not.toHaveURL(/\/sign-in/);

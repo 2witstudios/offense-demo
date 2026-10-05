@@ -422,6 +422,18 @@ budget.
   `DEBUG=pw:protocol` still prints, and other `pw:*` namespaces are untouched.
 - The server evidence covers the web process (app, TLS edge and mail
   capture); `apps/realtime` is not sampled, since no page creation reaches it.
+- On macOS, Playwright's WebKit follows the system keyboard setting: unless
+  "Keyboard navigation" is on (System Settings → Keyboard, the
+  `AppleKeyboardUIMode` default), Tab moves only between text fields and
+  lists, never to buttons or links. The specs that Tab to a button or link
+  then fail in `webkit` and `webkit-mobile` only, with `toBeFocused`
+  receiving "inactive" or fewer focused controls than expected:
+  `accessibility-keyboard.e2e.ts` (username onboarding by keyboard, visible
+  focus on every sign-in control, the shared-computer decline) and
+  `journey-no-js.e2e.ts` (the username form's keyboard decline). They pass
+  on Linux CI and on a Mac with that setting on; this is the host, not the
+  app. `bun cli/verify-generated.ts --e2e` runs Chromium and Firefox only
+  for this reason.
 
 ## Test file naming
 

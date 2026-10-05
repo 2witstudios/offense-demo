@@ -1,8 +1,9 @@
 import { type Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { signUpMember } from './support/accounts';
+import { displayName } from './support/brand';
 
-const publicTitles: Record<string, string> = { '/': 'Offense Demo' };
+const publicTitles: Record<string, string> = { '/': displayName };
 // The configured guarded areas (appConfig.guardedAreas) need an account.
 const guardedTitles: Record<string, string> = {
   '/app': 'App',
@@ -10,8 +11,8 @@ const guardedTitles: Record<string, string> = {
 };
 
 // Pages whose heading is not their metadata title.
-const headings: Record<string, RegExp> = {
-  '/': /^OffenseDemo$/,
+const headings: Record<string, string | RegExp> = {
+  '/': displayName,
   '/app': /^You’re signed in as /,
 };
 
@@ -19,9 +20,7 @@ const expectShell = async (page: Page, route: string, title: string) => {
   await page.goto(route);
   await expect(page).toHaveURL(new RegExp(`${route}$`));
   await expect(page).toHaveTitle(
-    route === '/'
-      ? new RegExp(`^${title}$`)
-      : new RegExp(`^${title} · OffenseDemo$`),
+    route === '/' ? title : `${title} · ${displayName}`,
   );
   await expect(page.locator('main h1')).toHaveText(headings[route] ?? title);
 };

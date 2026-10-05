@@ -10,6 +10,7 @@ import {
   reachOnboarding,
   sessionUsername,
 } from './support/accounts';
+import { displayName } from './support/brand';
 import { claimUsername, declineOfferToApp } from './support/forms';
 import { effectsRan } from './support/hydration';
 import { watchTopbarLinks } from './support/topbar';
@@ -305,17 +306,15 @@ test('a fresh session makes no refresh call, and neither does a visitor', async 
 });
 
 test('a visitor can reach the topbar logo and Sign in', async ({ page }) => {
-  const topbar = await watchTopbarLinks(page, ['Offense Demo home', 'Sign in']);
+  const links = [`${displayName} home`, 'Sign in'];
+  const topbar = await watchTopbarLinks(page, links);
   await page.goto('/');
   const signIn = page
     .getByRole('banner')
     .getByRole('link', { name: 'Sign in' });
   await expect(signIn).toBeVisible();
   const { covered, inspected } = await topbar.settle();
-  expect(Object.keys(inspected).sort()).toEqual([
-    'Offense Demo home',
-    'Sign in',
-  ]);
+  expect(Object.keys(inspected).sort()).toEqual([...links].sort());
   expect(covered).toEqual([]);
   await signIn.click();
   await expect(page).toHaveURL(/\/sign-in$/);
