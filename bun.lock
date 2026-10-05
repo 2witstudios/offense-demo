@@ -49,16 +49,17 @@
       "name": "@offense-demo/web",
       "version": "0.0.0",
       "dependencies": {
+        "@better-auth/passkey": "1.7.5",
         "@offense-demo/auth": "workspace:*",
         "@offense-demo/clock": "workspace:*",
         "@offense-demo/config": "workspace:*",
         "@offense-demo/db": "workspace:*",
+        "@offense-demo/domain": "workspace:*",
         "@offense-demo/errors": "workspace:*",
         "@offense-demo/logger": "workspace:*",
         "@offense-demo/observability": "workspace:*",
         "@offense-demo/protocol": "workspace:*",
         "@offense-demo/redis": "workspace:*",
-        "@better-auth/passkey": "1.7.5",
         "@paralleldrive/cuid2": "3.3.0",
         "better-auth": "1.7.5",
         "next": "16.3.6",
@@ -116,10 +117,10 @@
       "name": "@offense-demo/db",
       "version": "0.0.0",
       "dependencies": {
+        "@better-auth/drizzle-adapter": "1.7.5",
         "@offense-demo/config": "workspace:*",
         "@offense-demo/errors": "workspace:*",
         "@offense-demo/protocol": "workspace:*",
-        "@better-auth/drizzle-adapter": "1.7.5",
         "@paralleldrive/cuid2": "3.3.0",
         "drizzle-orm": "1.0.0-rc.4",
         "zod": "4.6.5",
@@ -198,32 +199,6 @@
     },
   },
   "packages": {
-    "@offense-demo/auth": ["@offense-demo/auth@workspace:packages/auth"],
-
-    "@offense-demo/clock": ["@offense-demo/clock@workspace:packages/clock"],
-
-    "@offense-demo/config": ["@offense-demo/config@workspace:packages/config"],
-
-    "@offense-demo/db": ["@offense-demo/db@workspace:packages/db"],
-
-    "@offense-demo/domain": ["@offense-demo/domain@workspace:packages/domain"],
-
-    "@offense-demo/errors": ["@offense-demo/errors@workspace:packages/errors"],
-
-    "@offense-demo/logger": ["@offense-demo/logger@workspace:packages/logger"],
-
-    "@offense-demo/observability": ["@offense-demo/observability@workspace:packages/observability"],
-
-    "@offense-demo/protocol": ["@offense-demo/protocol@workspace:packages/protocol"],
-
-    "@offense-demo/realtime": ["@offense-demo/realtime@workspace:apps/realtime"],
-
-    "@offense-demo/redis": ["@offense-demo/redis@workspace:packages/redis"],
-
-    "@offense-demo/typescript-config": ["@offense-demo/typescript-config@workspace:packages/typescript-config"],
-
-    "@offense-demo/web": ["@offense-demo/web@workspace:apps/web"],
-
     "@alloc/quick-lru": ["@alloc/quick-lru@5.3.0", "", {}, "sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA=="],
 
     "@axe-core/playwright": ["@axe-core/playwright@4.13.0", "", { "dependencies": { "axe-core": "~4.13.0" }, "peerDependencies": { "playwright-core": ">= 1.0.0" } }, "sha512-6YLx+kxXu5GJceG4ozFg+33a2EMTdjYwWGloJ3sb9Kta5pp+ZNS53uxGVog5JetIY8s++P5UrtX+cri+u0VAVg=="],
@@ -483,6 +458,32 @@
     "@nodelib/fs.walk": ["@nodelib/fs.walk@1.2.8", "", { "dependencies": { "@nodelib/fs.scandir": "2.1.5", "fastq": "^1.6.0" } }, "sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg=="],
 
     "@nolyfill/is-core-module": ["@nolyfill/is-core-module@1.0.39", "", {}, "sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA=="],
+
+    "@offense-demo/auth": ["@offense-demo/auth@workspace:packages/auth"],
+
+    "@offense-demo/clock": ["@offense-demo/clock@workspace:packages/clock"],
+
+    "@offense-demo/config": ["@offense-demo/config@workspace:packages/config"],
+
+    "@offense-demo/db": ["@offense-demo/db@workspace:packages/db"],
+
+    "@offense-demo/domain": ["@offense-demo/domain@workspace:packages/domain"],
+
+    "@offense-demo/errors": ["@offense-demo/errors@workspace:packages/errors"],
+
+    "@offense-demo/logger": ["@offense-demo/logger@workspace:packages/logger"],
+
+    "@offense-demo/observability": ["@offense-demo/observability@workspace:packages/observability"],
+
+    "@offense-demo/protocol": ["@offense-demo/protocol@workspace:packages/protocol"],
+
+    "@offense-demo/realtime": ["@offense-demo/realtime@workspace:apps/realtime"],
+
+    "@offense-demo/redis": ["@offense-demo/redis@workspace:packages/redis"],
+
+    "@offense-demo/typescript-config": ["@offense-demo/typescript-config@workspace:packages/typescript-config"],
+
+    "@offense-demo/web": ["@offense-demo/web@workspace:apps/web"],
 
     "@opentelemetry/api": ["@opentelemetry/api@1.9.1", "", {}, "sha512-gLyJlPHPZYdAk1JENA9LeHejZe1Ti77/pTeFm/nMXmQH/HFZlcS/O2XJB+L8fkbrNSqhdtlvjBVjxwUYanNH5Q=="],
 

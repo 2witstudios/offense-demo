@@ -20,6 +20,7 @@
     "@offense-demo/clock": "workspace:*",
     "@offense-demo/config": "workspace:*",
     "@offense-demo/db": "workspace:*",
+    "@offense-demo/domain": "workspace:*",
     "@offense-demo/errors": "workspace:*",
     "@offense-demo/logger": "workspace:*",
     "@offense-demo/observability": "workspace:*",

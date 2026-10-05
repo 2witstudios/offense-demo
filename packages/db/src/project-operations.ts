@@ -9,7 +9,7 @@ import { isForeignKeyViolation } from './sql-state';
  * A stored project as a plain record (never a domain entity: `packages/db`
  * does not import `@offense-demo/domain`). Timestamps are UTC ISO strings.
  */
-type ProjectRecord = {
+export type ProjectRecord = {
   readonly id: string;
   readonly ownerUserId: string;
   readonly name: string;
