@@ -1,0 +1,35 @@
+<h1>Task artifacts and linking</h1>
+<p>Plans, prompts and reviews are artifacts of the task. They live in PageSpace, where page history versions them, and they are connected to tasks with @-mentions so they can be retrieved from either side. Local temp directories are scratch and are never the record.</p>
+<h2>Where things live</h2>
+<ul>
+<li><strong>{{page:roadmap}}</strong> — the board only: Epic → Phase → Leaf. A task page holds its acceptance criteria and a "Related pages" block. No documents are filed under task pages.</li>
+<li><strong>{{page:plans}}/&lt;Epic&gt;</strong> — specifications, delivery maps, preparation plans, delivery logs and builder handoffs.</li>
+<li><strong>{{page:prompts}}/&lt;Epic&gt;</strong> — task-specific prompts: one page per agent run, holding only what is specific to that run.</li>
+<li><strong>{{page:reviews}}/&lt;Epic&gt;</strong> — review records, one per reviewed candidate, naming the exact SHA.</li>
+<li><strong>{{page:library}}/Universal prompts</strong> — prompts reused across tasks and epics: {{page:builderContract}}, {{page:reviewerContract}}, {{page:orchestratorLoop}}, {{page:convergeLoop}}.</li>
+<li><strong>{{page:library}}/Skills</strong> — reusable procedures an agent loads on demand (task, pr, review, handoff).</li>
+<li><strong>Engineering Standards</strong> — coding and process standards, including this page.</li>
+<li><strong>{{page:issues}}</strong> — work that is not an epic leaf, filed in its buckets (see Issues below).</li>
+<li><strong>{{page:documentation}}</strong> — the published documentation, owned by the documentation pipeline.</li>
+</ul>
+<h2>Naming</h2>
+<p><code>Prompt — stage N &lt;role&gt; (&lt;scope&gt;)</code> · <code>Plan — …</code> · <code>Handoff — stage N &lt;role&gt; (PR #n)</code> · <code>Review record — stage N &lt;what&gt; (&lt;sha or PR&gt;)</code> · <code>Delivery log — &lt;Epic&gt;</code>.</p>
+<h2>Linking rules</h2>
+<ul>
+<li>Link with page mentions, not pasted URLs. In a document: <code>&lt;a class="mention" data-mention-type="page" data-page-id="PAGE_ID"&gt;@Title&lt;/a&gt;</code>. In channels and plain text: <code>@[Title](PAGE_ID:page)</code>. Both are indexed on save and produce backlinks.</li>
+<li><strong>Direction is specific → general.</strong> A task mentions its plan, prompts, handoffs and reviews. A task prompt mentions the universal prompt it uses. A review mentions the tasks, prompt and handoff it covers.</li>
+<li><strong>Universal prompts and skills never mention a task, plan, prompt or review.</strong> They are reused; their backlinks show who uses them.</li>
+<li>Every phase and leaf page ends with a "Related pages" block. The orchestrator adds each artifact to it when the artifact is created. Adding links is not a criterion change; criteria text is never edited this way.</li>
+<li>Every PR description, written with the <code>/pr</code> skill, links its tasks, plan and prompt, with every task code written in full (the documentation pipeline reads task codes from the PR title, branch and body, and classifies the merge from the conventional-commit title). Every PR also carries a comment linking all of its related pages: prompt, plan, handoff and every review record. Review verdicts are also posted as a PR comment.</li>
+</ul>
+<h2>Who writes what</h2>
+<ul>
+<li>The orchestrator writes the task prompt page first, then spawns the agent with <code>pagespace pages read &lt;promptPageId&gt;</code>. A prompt changed mid-run is edited in place so history shows what the agent was told.</li>
+<li>Builders publish their handoff; reviewers publish their review record. Reviewers run in the builder's worktree and leave it clean.</li>
+<li>Every agent publishes its own artifact pages and keeps its own tasks current up to In Review. No agent edits the criteria or scope of a task delegated to it. A merged task moves to Merged automatically; Done is granted from an independent review record, never by the agent that did the work. Criteria, specs and scope change only with the owner's recorded approval.</li>
+<li>A decision an agent makes on the owner's behalf is recorded with <code>bun decision:record</code> in {{page:pendingDecisions}}; it stays open until the owner moves it to Confirmed or Overruled.</li>
+<li>Gate logs and traces stay with CI or the PR and are linked from the record. Secrets and env material are never uploaded.</li>
+</ul>
+<h2>Issues</h2>
+<p>Defects and review findings that are not part of an open leaf go in the {{page:issues}} task list at the drive root, filed in one of its buckets ({{page:bugs}}, {{page:testCoverage}}, {{page:agentTooling}}, {{page:docDrift}}, {{page:userFeedback}}; {{page:backlog}} and {{page:pendingDecisions}} live there too), never in GitHub Issues. The test is whether an open leaf owns it: if one does, the finding is a follow-up leaf under that phase regardless of merge state. Title <code>ISSUE-n — Given X, should Y</code>; body records origin (PR, review record, reporter), why, and acceptance criteria; the Related pages block links the origin. An issue is closed by a PR that names it, or promoted to an epic leaf when it grows into feature work.</p>
+<p><strong>Why this list exists:</strong> findings that were out of scope for the PR under review used to live only in review prose and were lost the moment the PR merged, so bad code persisted. Therefore filing is an obligation, not an option — whoever observes it (reviewer, builder, orchestrator) files the leaf or issue in the same session, and a review record is not finished while any unfixed finding lacks a page id. The list is read at two fixed points: the orchestrator scans every bucket before every stage and carries relevant issues into the prompt as known debts, and no phase or epic closes while an issue it produced is untriaged (promoted, scheduled, or deferred by the owner with a reason).</p>

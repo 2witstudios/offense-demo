@@ -1,0 +1,24 @@
+{
+  "path": ["."],
+  "pattern": "{apps/*/src,packages/*/src,packages/*/scripts,scripts,scenarios}/**/*",
+  "format": ["typescript", "tsx", "javascript", "jsx", "css"],
+  "minTokens": 50,
+  "minLines": 5,
+  "ignore": [
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.e2e.ts",
+    "**/*.test-support.ts",
+    "**/test-support/**",
+    "**/.next/**",
+    "**/.turbo/**",
+    "**/node_modules/**",
+    "**/migrations/*/snapshot.json",
+    "apps/web/src/ui/mock/**"
+  ],
+  "reporters": ["console"],
+  "baseline": ".jscpd-baseline.json",
+  "failOnNewClones": 0,
+  "failOnEmpty": true,
+  "noTips": true
+}

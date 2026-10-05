@@ -1,0 +1,20 @@
+<h1>Issues</h1>
+<p>Work that is not an epic leaf, never GitHub Issues: defects found after the owning leaf is Done, review findings and minors with no open leaf to carry them, and small non-epic improvements. If an open leaf owns the finding, it is a follow-up leaf under that phase instead, regardless of merge state.</p>
+<h2>Buckets</h2>
+<ul>
+<li>{{page:bugs}} — defects in shipped behavior.</li>
+<li>{{page:testCoverage}} — missing or weak proofs, flaky tests, negative controls.</li>
+<li>{{page:agentTooling}} — agent workflow, scripts, skills and board plumbing.</li>
+<li>{{page:docDrift}} — documentation or specification that disagrees with the code.</li>
+<li>{{page:userFeedback}} — reports from people using {{displayName}}.</li>
+<li>{{page:backlog}} — feature candidates awaiting a spec.</li>
+<li>{{page:pendingDecisions}} — decisions made on the owner's behalf, open until Confirmed or Overruled.</li>
+</ul>
+<h2>Rules</h2>
+<ul>
+<li>Title <code>ISSUE-n — Given X, should Y</code>. The body records origin (PR, review record, reporter), why, and the acceptance criteria; the Related pages block links the origin.</li>
+<li>Filing is an obligation: whoever observes a defect or a deferrable improvement — reviewer, builder, or orchestrator — files it in the same session rather than mentioning it in prose.</li>
+<li>An issue closes through a PR that names it (it moves to Merged, then Done from an independent review), or is promoted to an epic leaf when it grows into feature work.</li>
+<li>Before a stage starts, the orchestrator reads every bucket for anything touching the files or phase about to be built and carries it into the prompt. An epic cannot close while any issue it produced is untriaged (promoted, scheduled, or deferred by the owner with a reason).</li>
+</ul>
+<p>Rules in full: {{page:conventions}}.</p>

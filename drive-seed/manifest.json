@@ -1,0 +1,601 @@
+{
+  "version": 1,
+  "driveContext": "drive-context.md",
+  "homePage": "roadmap",
+  "statusPresets": {
+    "ready": {
+      "name": "Ready",
+      "group": "todo",
+      "color": "bg-blue-100 text-blue-700"
+    },
+    "inReview": {
+      "name": "In Review",
+      "group": "in_progress",
+      "color": "bg-purple-100 text-purple-700"
+    },
+    "merged": {
+      "name": "Merged",
+      "group": "in_progress",
+      "color": "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300"
+    },
+    "confirmed": {
+      "name": "Confirmed",
+      "group": "done",
+      "color": "bg-green-100 text-green-700"
+    },
+    "overruled": {
+      "name": "Overruled",
+      "group": "done",
+      "color": "bg-red-100 text-red-700"
+    }
+  },
+  "nodes": [
+    {
+      "ref": "roadmap",
+      "config": "pages.roadmap",
+      "title": "Roadmap",
+      "type": "TASK_LIST",
+      "parent": null,
+      "content": "pages/roadmap.html",
+      "statuses": ["ready", "inReview", "merged"]
+    },
+    {
+      "ref": "issues",
+      "config": "pages.issues",
+      "title": "Issues",
+      "type": "TASK_LIST",
+      "parent": null,
+      "content": "pages/issues.html",
+      "statuses": ["merged"]
+    },
+    {
+      "ref": "bugs",
+      "config": "pages.bugs",
+      "title": "Bugs",
+      "type": "TASK",
+      "parent": "issues",
+      "statuses": ["inReview", "merged"]
+    },
+    {
+      "ref": "testCoverage",
+      "config": "pages.testCoverage",
+      "title": "Test coverage",
+      "type": "TASK",
+      "parent": "issues",
+      "statuses": ["inReview", "merged"]
+    },
+    {
+      "ref": "agentTooling",
+      "config": "pages.agentTooling",
+      "title": "Agent tooling",
+      "type": "TASK",
+      "parent": "issues",
+      "statuses": ["inReview", "merged"]
+    },
+    {
+      "ref": "docDrift",
+      "config": "pages.docDrift",
+      "title": "Doc and spec drift",
+      "type": "TASK",
+      "parent": "issues",
+      "statuses": ["inReview", "merged"]
+    },
+    {
+      "ref": "userFeedback",
+      "config": "pages.userFeedback",
+      "title": "User feedback",
+      "type": "TASK",
+      "parent": "issues",
+      "statuses": ["inReview", "merged"]
+    },
+    {
+      "ref": "backlog",
+      "config": "pages.backlog",
+      "title": "Backlog",
+      "type": "TASK",
+      "parent": "issues",
+      "content": "pages/backlog.html",
+      "statuses": ["ready", "inReview", "merged"]
+    },
+    {
+      "ref": "pendingDecisions",
+      "config": "pages.pendingDecisions",
+      "title": "Pending decisions",
+      "type": "TASK",
+      "parent": "issues",
+      "content": "pages/pending-decisions.html",
+      "statuses": ["confirmed", "overruled", "merged"]
+    },
+
+    {
+      "ref": "standup",
+      "config": "channels.standup",
+      "title": "Standup",
+      "type": "CHANNEL",
+      "parent": null,
+      "webhook": "STANDUP"
+    },
+    {
+      "ref": "sprintRoom",
+      "config": "channels.sprintRoom",
+      "title": "Sprint Room",
+      "type": "CHANNEL",
+      "parent": null,
+      "webhook": "SPRINT_ROOM"
+    },
+    {
+      "ref": "epicUpdates",
+      "config": "channels.epicUpdates",
+      "title": "Epic Updates",
+      "type": "CHANNEL",
+      "parent": null,
+      "webhook": "EPIC_UPDATES"
+    },
+    {
+      "ref": "incidents",
+      "config": "channels.incidents",
+      "title": "Incidents",
+      "type": "CHANNEL",
+      "parent": null,
+      "webhook": "INCIDENTS"
+    },
+
+    {
+      "ref": "agents",
+      "config": "pages.agents",
+      "title": "Agents",
+      "type": "FOLDER",
+      "parent": null
+    },
+    {
+      "ref": "scrumMaster",
+      "config": "agents.scrumMaster",
+      "title": "Scrum Master",
+      "type": "AI_CHAT",
+      "parent": "agents",
+      "agent": {
+        "systemPrompt": "agents/scrum-master.md",
+        "aiProvider": "glm",
+        "aiModel": "glm-5.3",
+        "enabledTools": [
+          "multi_drive_search",
+          "regex_search",
+          "glob_search",
+          "list_pages",
+          "read_page",
+          "create_page",
+          "replace_lines",
+          "insert_content",
+          "create_task",
+          "update_task",
+          "reorder_task",
+          "get_assigned_tasks",
+          "create_task_status",
+          "load_skill",
+          "get_activity",
+          "list_conversations",
+          "read_conversation",
+          "gh_pr_list",
+          "gh_pr_view",
+          "gh_pr_checks",
+          "gh_run_list",
+          "gh_run_view",
+          "gh_repo_view",
+          "gh_search"
+        ]
+      }
+    },
+    {
+      "ref": "builder",
+      "config": "agents.builder",
+      "title": "Builder",
+      "type": "AI_CHAT",
+      "parent": "agents",
+      "agent": {
+        "systemPrompt": "agents/builder.md",
+        "aiProvider": "glm",
+        "aiModel": "glm-5.3",
+        "enabledTools": [
+          "multi_drive_search",
+          "regex_search",
+          "glob_search",
+          "list_pages",
+          "read_page",
+          "create_page",
+          "replace_lines",
+          "insert_content",
+          "copy_content",
+          "create_task",
+          "update_task",
+          "load_skill",
+          "web_search",
+          "web_fetch",
+          "gh_pr_list",
+          "gh_pr_view",
+          "gh_pr_diff",
+          "gh_pr_checks",
+          "gh_run_list",
+          "gh_run_view",
+          "gh_repo_view",
+          "gh_search"
+        ]
+      }
+    },
+    {
+      "ref": "reviewer",
+      "config": "agents.reviewer",
+      "title": "Reviewer",
+      "type": "AI_CHAT",
+      "parent": "agents",
+      "agent": {
+        "systemPrompt": "agents/reviewer.md",
+        "aiProvider": "glm",
+        "aiModel": "glm-5.3",
+        "enabledTools": [
+          "multi_drive_search",
+          "regex_search",
+          "glob_search",
+          "list_pages",
+          "read_page",
+          "create_page",
+          "replace_lines",
+          "insert_content",
+          "create_task",
+          "update_task",
+          "load_skill",
+          "web_search",
+          "web_fetch",
+          "gh_pr_list",
+          "gh_pr_view",
+          "gh_pr_diff",
+          "gh_pr_checks",
+          "gh_run_list",
+          "gh_run_view",
+          "gh_repo_view",
+          "gh_search"
+        ]
+      }
+    },
+    {
+      "ref": "documentationAgent",
+      "config": "agents.documentation",
+      "title": "Documentation Agent",
+      "type": "AI_CHAT",
+      "parent": "agents",
+      "agent": {
+        "systemPrompt": "agents/documentation.md",
+        "aiProvider": "glm",
+        "aiModel": "glm-5.3-flash",
+        "enabledTools": [
+          "multi_drive_search",
+          "regex_search",
+          "glob_search",
+          "list_pages",
+          "read_page",
+          "list_trash",
+          "create_page",
+          "replace_lines",
+          "insert_content",
+          "rename_page",
+          "move_page",
+          "create_task",
+          "update_task",
+          "load_skill",
+          "get_activity",
+          "list_workflows",
+          "list_conversations",
+          "read_conversation",
+          "web_search",
+          "web_fetch",
+          "gh_pr_list",
+          "gh_pr_view",
+          "gh_pr_diff",
+          "gh_pr_checks",
+          "gh_run_list",
+          "gh_run_view",
+          "gh_issue_list",
+          "gh_issue_view",
+          "gh_repo_view",
+          "gh_search",
+          "read_sheet",
+          "edit_sheet_cells",
+          "copy_content"
+        ]
+      }
+    },
+    {
+      "ref": "agentMemory",
+      "config": "pages.agentMemory",
+      "title": "Agent Memory",
+      "type": "DOCUMENT",
+      "parent": "agents",
+      "content": "pages/agent-memory.md"
+    },
+
+    {
+      "ref": "standards",
+      "config": null,
+      "title": "Engineering Standards",
+      "type": "FOLDER",
+      "parent": null
+    },
+    {
+      "ref": "conventions",
+      "config": "pages.conventions",
+      "title": "Task artifacts and linking",
+      "type": "DOCUMENT",
+      "parent": "standards",
+      "content": "pages/conventions.html"
+    },
+    {
+      "ref": "standardBun",
+      "config": null,
+      "title": "Bun-Only Toolchain",
+      "type": "DOCUMENT",
+      "parent": "standards",
+      "content": "pages/standards/bun-only.md"
+    },
+    {
+      "ref": "standardPure",
+      "config": null,
+      "title": "Pure Functions",
+      "type": "DOCUMENT",
+      "parent": "standards",
+      "content": "pages/standards/pure-functions.md"
+    },
+    {
+      "ref": "standardTdd",
+      "config": null,
+      "title": "TDD with RITEway",
+      "type": "DOCUMENT",
+      "parent": "standards",
+      "content": "pages/standards/tdd-riteway.md"
+    },
+    {
+      "ref": "standardKnip",
+      "config": null,
+      "title": "Knip Dead-Code Gate",
+      "type": "DOCUMENT",
+      "parent": "standards",
+      "content": "pages/standards/knip.md"
+    },
+
+    {
+      "ref": "plans",
+      "config": "pages.plans",
+      "title": "Plans",
+      "type": "FOLDER",
+      "parent": null
+    },
+    {
+      "ref": "prompts",
+      "config": "pages.prompts",
+      "title": "Prompts",
+      "type": "FOLDER",
+      "parent": null
+    },
+    {
+      "ref": "reviews",
+      "config": "pages.reviews",
+      "title": "Reviews",
+      "type": "FOLDER",
+      "parent": null
+    },
+
+    {
+      "ref": "library",
+      "config": "pages.library",
+      "title": "Library",
+      "type": "FOLDER",
+      "parent": null
+    },
+    {
+      "ref": "universalPrompts",
+      "config": null,
+      "title": "Universal prompts",
+      "type": "FOLDER",
+      "parent": "library"
+    },
+    {
+      "ref": "builderContract",
+      "config": "pages.builderContract",
+      "title": "Builder contract",
+      "type": "DOCUMENT",
+      "parent": "universalPrompts",
+      "content": "library/builder-contract.html"
+    },
+    {
+      "ref": "reviewerContract",
+      "config": "pages.reviewerContract",
+      "title": "Reviewer contract",
+      "type": "DOCUMENT",
+      "parent": "universalPrompts",
+      "content": "library/reviewer-contract.html"
+    },
+    {
+      "ref": "orchestratorLoop",
+      "config": "pages.orchestratorLoop",
+      "title": "Orchestrator stage loop",
+      "type": "DOCUMENT",
+      "parent": "universalPrompts",
+      "content": "library/orchestrator-loop.html"
+    },
+    {
+      "ref": "convergeLoop",
+      "config": "pages.convergeLoop",
+      "title": "Converge loop",
+      "type": "DOCUMENT",
+      "parent": "universalPrompts",
+      "content": "library/converge-loop.html"
+    },
+    {
+      "ref": "skills",
+      "config": null,
+      "title": "Skills",
+      "type": "FOLDER",
+      "parent": "library"
+    },
+    {
+      "ref": "skillTask",
+      "config": null,
+      "title": "Skill — task (plan and task an epic)",
+      "type": "DOCUMENT",
+      "parent": "skills",
+      "content": "skills/task.md"
+    },
+    {
+      "ref": "skillTaskPlanTemplate",
+      "config": null,
+      "title": "Skill — task: plan template",
+      "type": "DOCUMENT",
+      "parent": "skills",
+      "content": "skills/task-plan-template.md"
+    },
+    {
+      "ref": "skillTaskBoardCommands",
+      "config": null,
+      "title": "Skill — task: board commands",
+      "type": "DOCUMENT",
+      "parent": "skills",
+      "content": "skills/task-board-commands.md"
+    },
+    {
+      "ref": "skillPr",
+      "config": null,
+      "title": "Skill — pr (PageSpace-linked pull requests)",
+      "type": "DOCUMENT",
+      "parent": "skills",
+      "content": "skills/pr.md"
+    },
+    {
+      "ref": "skillReview",
+      "config": null,
+      "title": "Skill — review (PageSpace-recorded reviews)",
+      "type": "DOCUMENT",
+      "parent": "skills",
+      "content": "skills/review.md"
+    },
+    {
+      "ref": "skillHandoff",
+      "config": null,
+      "title": "Skill — handoff (one-step builder handoff)",
+      "type": "DOCUMENT",
+      "parent": "skills",
+      "content": "skills/handoff.md"
+    },
+    {
+      "ref": "skillTriage",
+      "config": null,
+      "title": "Skill — triage (PR review comments)",
+      "type": "DOCUMENT",
+      "parent": "skills",
+      "content": "skills/triage.md"
+    },
+
+    {
+      "ref": "documentation",
+      "config": "pages.documentation",
+      "title": "Documentation",
+      "type": "FOLDER",
+      "parent": null
+    },
+    {
+      "ref": "technicalDocs",
+      "config": "pages.technicalDocs",
+      "title": "Technical Documentation",
+      "type": "CANVAS",
+      "parent": "documentation",
+      "content": "docs/technical-docs.html"
+    },
+    {
+      "ref": "userDocs",
+      "config": "pages.userDocs",
+      "title": "User Documentation",
+      "type": "CANVAS",
+      "parent": "documentation",
+      "content": "docs/user-docs.html"
+    },
+    {
+      "ref": "blog",
+      "config": "pages.blog",
+      "title": "Blog",
+      "type": "CANVAS",
+      "parent": "documentation",
+      "content": "docs/blog.html"
+    },
+    {
+      "ref": "pageRegistry",
+      "config": null,
+      "title": "Page Registry",
+      "type": "SHEET",
+      "parent": "documentation",
+      "header": [
+        "docKey",
+        "pageId",
+        "parent",
+        "type",
+        "audience",
+        "status",
+        "sourceRefs",
+        "lastVerifiedCommit"
+      ]
+    },
+    {
+      "ref": "docsRunsSheet",
+      "config": "pages.docsRunsSheet",
+      "title": "Documentation Runs",
+      "type": "SHEET",
+      "parent": "documentation",
+      "header": [
+        "runId",
+        "workflow",
+        "startedAt",
+        "completedAt",
+        "status",
+        "sourceSnapshot",
+        "promptVersion",
+        "idempotencyKey",
+        "scope",
+        "pagesReviewed",
+        "findings",
+        "autoFixed",
+        "tasksCreated",
+        "pagesInvalidated",
+        "baseRevision",
+        "resultingRevision",
+        "notes"
+      ]
+    },
+    {
+      "ref": "reviewQueue",
+      "config": null,
+      "title": "Review Queue",
+      "type": "TASK_LIST",
+      "parent": "documentation",
+      "content": "pages/review-queue.html",
+      "statuses": ["inReview", "merged"]
+    }
+  ],
+  "docsWorkflows": [
+    {
+      "name": "Docs — accuracy review (daily)",
+      "pipeline": "accuracy-review",
+      "cron": "0 6 * * *"
+    },
+    {
+      "name": "Docs — adversarial review (weekly)",
+      "pipeline": "adversarial-review",
+      "cron": "0 7 * * 1"
+    },
+    {
+      "name": "Docs — prose review (weekly)",
+      "pipeline": "prose-review",
+      "cron": "0 8 * * 1"
+    },
+    {
+      "name": "Docs — anti-slop review (weekly)",
+      "pipeline": "anti-slop-review",
+      "cron": "0 9 * * 1"
+    }
+  ]
+}

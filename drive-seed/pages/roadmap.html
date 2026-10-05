@@ -1,0 +1,53 @@
+<h1>{{displayName}} — Agent Operating System</h1>
+<p>Agent-run agile for {{displayName}} (<code>{{repo}}</code>). Agents hold every execution role; humans set direction and hold sign-off gates only. The repository's <code>AGENTS.md</code> is the binding engineering contract (Bun-only, TDD with RITEway, pure functions, knip gate). Gates: <code>bun check</code> · <code>{{integrationCommand}}</code> · <code>bun test:e2e</code> · <code>bun verify</code> · <code>bun migrations:check</code>.</p>
+<h2>Hierarchy</h2>
+<pre><code>Roadmap (root — this page)
+├── Epics (TASK_LIST children) — strategic scope
+│   └── Phase (TASK_LIST)
+│       └── Leaf — acceptance criteria, "Given X, should Y"
+├── Issues (TASK_LIST) — work that is not an epic leaf; never GitHub Issues
+│   ├── Bugs · Test coverage · Agent tooling · Doc and spec drift · User feedback — ISSUE-n buckets
+│   ├── Backlog — feature candidates awaiting a spec
+│   └── Pending decisions — DEC-n decisions made on the owner's behalf (Confirmed / Overruled)
+├── Channels — Standup · Sprint Room · Epic Updates · Incidents
+├── Agents (FOLDER) — Scrum Master · Builder · Reviewer · Documentation Agent · Agent Memory
+├── Engineering Standards (FOLDER) — binding engineering docs, incl. "Task artifacts and linking"
+├── Plans (FOLDER) — per epic: specs, delivery maps, delivery logs, plans, builder handoffs
+├── Prompts (FOLDER) — per epic: the task prompt each agent run was given
+├── Reviews (FOLDER) — per epic: independent review records of code PRs (Done is granted from these)
+├── Library (FOLDER) — Universal prompts (Builder · Reviewer contracts, Orchestrator stage loop, Converge loop) and Skills; never link to tasks
+└── Documentation (FOLDER) — Canvas docs (Technical · User · Blog), Page Registry and
+    Documentation Runs sheets, Review Queue; owned by the docs pipeline</code></pre>
+<h2>Status model</h2>
+<ul>
+<li>To Do = groomed and eligible · <strong>Ready = committed: selected for work now</strong> · In Progress → Blocked / In Review → Merged → Done.</li>
+<li>Status lives in the status field, never the title. Commitment is a status; nothing moves folders.</li>
+<li>Agents keep their own tasks current up to In Review. The merge workflow moves a merged task to <strong>Merged</strong>; Done is granted only from an independent review record, never by the agent that did the work.</li>
+<li>A parent can't complete while a child is open — status is the only progress marker.</li>
+<li>Blocked longer than 24h → post to {{page:incidents}} with the task ID and owner.</li>
+<li>Leaf bodies are acceptance criteria — "Given X, should Y" — each mapping to one provable assertion (test, command exit, or page state). Em-dash <code>—</code> between label and description; middle dot <code>·</code> for numbered steps.</li>
+<li>Execution leaves gate on TDD: <code>RED — failing test</code>, then <code>GREEN — implementation</code>.</li>
+<li>A human-only sign-off leaf gates deploys and anything touching production data. Agents never self-approve these.</li>
+</ul>
+<h2>Ceremonies — agent-run</h2>
+<ul>
+<li><strong>Daily standup</strong> — every active agent posts Yesterday / Today / Blockers to {{page:standup}}; the Scrum Master posts the digest and flags blockers.</li>
+<li><strong>Commitment</strong> — the Scrum Master or orchestrator grooms {{page:backlog}} candidates into epic leaves and sets the leaves selected for work now to <code>Ready</code>, posting the committed task IDs to {{page:epicUpdates}}. There is no timebox; only <code>Ready</code> leaves are claimed, and the epic plan in <code>Plans/&lt;Epic&gt;</code> holds dependencies and order.</li>
+<li><strong>Review</strong> — an independent Reviewer proves each candidate's acceptance criteria with command output and publishes a review record in <code>Reviews/&lt;Epic&gt;</code>; Done is granted only from that record.</li>
+<li><strong>Retro</strong> — at phase or epic close; findings go in the closing review record and land as edits to this page or to {{page:agentMemory}}.</li>
+</ul>
+<h2>Channel routing</h2>
+<ul>
+<li>{{page:standup}} — daily agent check-ins and the Scrum Master digest.</li>
+<li>{{page:sprintRoom}} — PR merge notices (posted automatically from CI) and cross-epic discussion.</li>
+<li>{{page:epicUpdates}} — epic and leaf status transitions, completions, decisions made on the owner's behalf.</li>
+<li>{{page:incidents}} — blocked work, CI and deploy failures, environment issues. Always with task ID, owner, and next action. CI posts its own failures automatically via webhook — don't duplicate.</li>
+</ul>
+<h2>Team</h2>
+<ul>
+<li><strong>{{page:scrumMaster}}</strong> — coordination: grooming, commitment, standup digest, unblocking, ceremony posts. Never edits app code.</li>
+<li><strong>{{page:builder}}</strong> — implementation: RED→GREEN leaves, integration coverage, docs and ADRs updated in the same change. Contract: {{page:builderContract}}.</li>
+<li><strong>{{page:reviewer}}</strong> — quality gate: proves acceptance criteria, enforces AGENTS.md standards, blocks Done until proven. Contract: {{page:reviewerContract}}.</li>
+<li><strong>{{page:documentationAgent}}</strong> — maintains {{page:documentation}} (Canvas pages, Page Registry, Documentation Runs) from merge events per <code>docs/architecture/documentation-pipeline.md</code>; works the Review Queue.</li>
+</ul>
+<p>Durable environment facts and work logs live in {{page:agentMemory}} — ceremonies and channels never duplicate them. The orchestrator owns Agent Memory writes. The rules for plans, prompts, handoffs and reviews are {{page:conventions}}.</p>

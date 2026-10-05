@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "invariants": [
+    {
+      "id": "project.name.valid",
+      "check": "name-valid",
+      "testReference": {
+        "path": "packages/domain/src/project.test.ts",
+        "name": "invalid names are rejected"
+      }
+    },
+    {
+      "id": "project.rename.changes-name",
+      "check": "rename-changes-name",
+      "testReference": {
+        "path": "packages/domain/src/project.test.ts",
+        "name": "a rename must change the name"
+      }
+    },
+    {
+      "id": "project.archived.terminal",
+      "check": "archived-is-terminal",
+      "testReference": {
+        "path": "packages/domain/src/project.test.ts",
+        "name": "archived projects are terminal"
+      }
+    }
+  ]
+}

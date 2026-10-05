@@ -1,0 +1,13 @@
+version: 2
+# No `bun` ecosystem entry: Dependabot's Bun parser supports lockfileVersion 1
+# while Bun 1.4.2 writes lockfileVersion 2, so the job fails every run. Track
+# Bun upgrades manually with `bun outdated` / `bun audit` until Dependabot
+# supports the current lockfile format.
+updates:
+  # Workflows pin actions to full commit SHAs with a trailing version
+  # comment (ADR 0040); Dependabot updates the SHA and the comment together.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

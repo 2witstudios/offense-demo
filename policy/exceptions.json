@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "exceptions": [
+    {
+      "path": "packages/observability/src/index.ts",
+      "adr": "docs/decisions/0018-cuid2-identifiers.md",
+      "reviewBy": "2027-09-20",
+      "rule": "direct-random-uuid",
+      "category": "tooling",
+      "owner": "platform",
+      "reason": "Request correlation fallback is tooling-owned and not a domain identifier."
+    },
+    {
+      "path": "apps/realtime/integration/realtime.integration.ts",
+      "adr": "docs/decisions/0018-cuid2-identifiers.md",
+      "reviewBy": "2027-09-20",
+      "rule": "direct-random-uuid",
+      "category": "integration-isolation",
+      "owner": "realtime",
+      "reason": "CSPRNG namespace isolates a real Redis integration client (RT-2.3a)."
+    },
+    {
+      "path": "eslint.config.test.ts",
+      "adr": "docs/decisions/0018-cuid2-identifiers.md",
+      "reviewBy": "2027-09-20",
+      "rule": "direct-random-uuid",
+      "category": "tooling",
+      "owner": "platform",
+      "reason": "The lint contract fixture intentionally names forbidden ambient APIs."
+    }
+  ]
+}

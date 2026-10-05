@@ -1,0 +1,18 @@
+node_modules
+.next
+.next-env.d.ts
+apps/web/next-env.d.ts
+.turbo
+bun.lock
+.pu
+coverage
+playwright-report
+test-results
+verify-logs
+packages/db/migrations/*/snapshot.json
+# Generated in-test previews (AUTH-3.9): rendered for a reviewer to open in a
+# browser, not authored source.
+apps/web/src/features/auth/mail/__fixtures__
+
+.claude/ralph-loop.*.md
+drive-seed/**/*.html

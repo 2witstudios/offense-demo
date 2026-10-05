@@ -1,0 +1,19 @@
+{
+  "name": "@offense-demo/observability",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test src"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "1.9.1"
+  },
+  "devDependencies": {
+    "riteway": "9.3.0"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  // Dead-code gate: unused files, exports and dependencies fail the run.
+  // Run with `bun run knip` (under Bun, per the toolchain contract).
+  "$schema": "./node_modules/knip/schema.json",
+  "includeEntryExports": true,
+  "workspaces": {
+    // Scenario documents are loaded by the `bun scenario <name>` CLI.
+    ".": {
+      "entry": ["scenarios/*.ts"],
+    },
+    // The e2e production server is started by Playwright's webServer command.
+    // Integration suites are globbed by scripts/test-integration.ts, which
+    // each workspace's test:integration runs instead of listing files.
+    "apps/web": {
+      "entry": [
+        "e2e/support/server.ts",
+        "integration/**/*.integration.ts",
+        // AUTH-6.7 load harness: run.ts and abuse-run.ts are CLI entries;
+        // instance-process.ts is spawned as a subprocess, never imported.
+        "scripts/auth-load/run.ts",
+        "scripts/auth-load/abuse-run.ts",
+        "scripts/auth-load/instance-process.ts",
+      ],
+    },
+    "packages/db": { "entry": ["integration/**/*.integration.ts"] },
+    "apps/realtime": {
+      "entry": ["integration/**/*.integration.ts"],
+    },
+    "packages/redis": {
+      "entry": ["integration/**/*.integration.ts"],
+    },
+  },
+}

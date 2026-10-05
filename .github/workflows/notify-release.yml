@@ -1,0 +1,59 @@
+name: Notify drive on release
+on:
+  release:
+    types: [published]
+permissions: {}
+concurrency:
+  group: notify-drive-release-${{ github.event.release.id }}
+  cancel-in-progress: false
+jobs:
+  documentation-event:
+    name: Send the release documentation event
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Start the dispatch budget with the job
+        run: echo "DOC_BUDGET_ENDS_AT=$(( $(date +%s) + 42 * 60 ))" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.2'
+      - name: Classify released files
+        env:
+          DOC_EVENT_TYPE: release.published
+          DOC_EVENT_ID: ${{ github.event.release.id }}-${{ github.sha }}
+          DOC_OCCURRED_AT: ${{ github.event.release.published_at }}
+          DOC_REPOSITORY: ${{ github.repository }}
+          DOC_BASE_REF: ${{ github.event.release.target_commitish }}
+          DOC_COMMIT: ${{ github.sha }}
+          DOC_PR_NUMBER: '0'
+          DOC_TITLE: ${{ github.event.release.name }}
+          DOC_PR_URL: ${{ github.event.release.html_url }}
+          DOC_AUTHOR: ${{ github.event.release.sender.login }}
+          DOC_BRANCH: ${{ github.event.release.target_commitish }}
+          DOC_BODY: ${{ github.event.release.body }}
+          PAGESPACE_TOKEN: ${{ secrets.PAGESPACE_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          PREV="$(git tag --sort=-creatordate | grep -A1 -Fx "$TAG" | tail -1)"
+          if [ -n "$PREV" ] && [ "$PREV" != "$TAG" ]; then
+            DOC_CHANGED_FILES="$(git diff --name-only "$PREV" "$GITHUB_SHA" | paste -sd, -)"
+          else
+            DOC_CHANGED_FILES="$(git diff --name-only "$GITHUB_SHA^" "$GITHUB_SHA" | paste -sd, -)"
+          fi
+          export DOC_CHANGED_FILES
+          bun scripts/dispatch-docs.ts
+      - name: Report the failed dispatch to incidents
+        if: failure()
+        env:
+          PAGESPACE_INCIDENTS_WEBHOOK_URL: ${{ secrets.PAGESPACE_INCIDENTS_WEBHOOK_URL }}
+          PAGESPACE_INCIDENTS_WEBHOOK_SECRET: ${{ secrets.PAGESPACE_INCIDENTS_WEBHOOK_SECRET }}
+          DOCS_FAILURE_PR: ${{ github.event.release.id }}
+          DOCS_FAILURE_URL: ${{ github.event.release.html_url }}
+        run: >-
+          bun scripts/notify-drive.ts incidents
+          --pr "$DOCS_FAILURE_PR"
+          --url "$DOCS_FAILURE_URL"

@@ -1,0 +1,27 @@
+# pu configuration, committed. pu reads it from the main checkout.
+# envFiles are copied into every new worktree; .env.agent carries the agent
+# machine identity, and every coding agent starts through
+# scripts/agent-launch.sh, which exports that identity and refuses to start
+# without it. launchArgs are empty because the flags live in the command.
+defaultAgent: claude
+envFiles:
+  - .env
+  - .env.local
+  - .env.agent
+agents:
+  claude:
+    name: claude
+    command: scripts/agent-launch.sh claude --dangerously-skip-permissions
+    launchArgs: []
+  codex:
+    name: codex
+    command: scripts/agent-launch.sh codex --sandbox workspace-write --ask-for-approval on-request
+    launchArgs: []
+  opencode:
+    name: opencode
+    command: scripts/agent-launch.sh opencode
+    launchArgs: []
+  terminal:
+    name: terminal
+    command: scripts/agent-launch.sh shell
+    launchArgs: []

@@ -1,0 +1,13 @@
+{
+  "path": ["."],
+  "pattern": "{apps/*/src/**/*.test.ts,apps/*/src/**/*.test.tsx,apps/*/src/**/*.test-support.ts,apps/*/src/**/test-support/**/*,apps/*/integration/**/*,apps/web/e2e/**/*,packages/*/src/**/*.test.ts,packages/*/src/**/*.test-support.ts,packages/*/integration/**/*,scripts/**/*.test.ts,scripts/**/*.test-support.ts,eslint.config.test.ts}",
+  "format": ["typescript", "tsx"],
+  "minTokens": 50,
+  "minLines": 5,
+  "ignore": ["**/node_modules/**", "**/.next/**", "**/.turbo/**"],
+  "reporters": ["console"],
+  "baseline": ".jscpd-tests-baseline.json",
+  "failOnNewClones": 0,
+  "failOnEmpty": true,
+  "noTips": true
+}

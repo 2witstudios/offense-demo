@@ -1,0 +1,58 @@
+name: Auth alert probe
+# AUTH-7.7: nothing running inside the app can alert on its own
+# unavailability while it is down, restarting or crash-looping, even though
+# staging is always on (DEC-40, fly.toml min_machines_running = 1). This
+# scheduled workflow is the evaluation point instead (see the AUTH-7.7 ADR):
+# it probes the public origin's readiness endpoint (non-mutating, proving
+# routing/TLS/security headers) and the bearer-token gated /api/ops/alerts,
+# then posts whatever fired to the drive's Incidents channel
+# (scripts/auth-alert-probe.ts). The cron below is configured for every 5
+# minutes, but GitHub's schedule trigger does not actually run that often in
+# production: ADR 0046 measured runs 2-5 hours apart over 43.5 hours, not
+# "a few minutes late". Owner decision (DEC-33, 2026-09-28): keep this exact
+# mechanism and accept its best-effort cadence for staging rather than build
+# a new scheduler; revisit before a production launch. Only the 2-hour
+# cleanup_missed window reliably survives the real gap between runs on its
+# own — the other conditions are proven live via an independent trigger plus
+# workflow_dispatch, not by waiting on the schedule (ISSUE-157-AC2).
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: auth-alert-probe
+  cancel-in-progress: false
+jobs:
+  probe:
+    name: Probe the staging origin and alert conditions
+    # No origin to probe until staging is deployed; until then the schedule
+    # skips without taking a runner (set STAGING_ENABLED=true with staging).
+    if: vars.STAGING_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    # The probe's request budgets (PROBE_FETCH_TIMEOUT_MS and
+    # NOTIFY_ATTEMPT_TIMEOUT_MS) fit a fully hung run in about 100 s, so it
+    # always posts before this limit (ISSUE-208).
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version-file: .bun-version
+      # ISSUE-225: the probe and notify-drive import no package, so the job
+      # installs nothing and runs them with --no-install: nothing is ever
+      # fetched, and a registry outage cannot stop the probe from posting.
+      # scripts/verify-deploy-config.ts holds both rules in place.
+      - name: Probe the origin and alert conditions
+        env:
+          OPS_PROBE_TOKEN: ${{ secrets.OPS_PROBE_TOKEN }}
+          PAGESPACE_INCIDENTS_WEBHOOK_URL: ${{ secrets.PAGESPACE_INCIDENTS_WEBHOOK_URL }}
+          PAGESPACE_INCIDENTS_WEBHOOK_SECRET: ${{ secrets.PAGESPACE_INCIDENTS_WEBHOOK_SECRET }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: >-
+          bun --no-install scripts/auth-alert-probe.ts
+          --origin https://offense-demo-staging.fly.dev
+          --run-url "$RUN_URL"

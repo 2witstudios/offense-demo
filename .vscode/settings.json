@@ -1,0 +1,24 @@
+{
+  "files.watcherExclude": {
+    "**/.pu/worktrees/**": true,
+    "**/node_modules/**": true,
+    "**/.next/**": true,
+    "**/.turbo/**": true,
+    "**/verify-logs/**": true
+  },
+  "search.exclude": {
+    "**/.pu/worktrees": true,
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/.turbo": true,
+    "**/verify-logs": true
+  },
+  "search.followSymlinks": false,
+  "files.exclude": {
+    "**/.pu/worktrees": true
+  },
+  "typescript.tsserver.watchOptions": {
+    "excludeDirectories": ["**/.pu/worktrees", "**/node_modules"]
+  },
+  "typescript.tsc.autoDetect": "off"
+}

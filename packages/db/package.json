@@ -1,0 +1,34 @@
+{
+  "name": "@offense-demo/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./dev-seed": "./src/dev-seed.ts",
+    "./slots": "./src/slots.ts",
+    "./test-runs": "./src/test-runs.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test src",
+    "test:integration": "bun ../../scripts/test-integration.ts",
+    "db:generate": "bun --bun x drizzle-kit generate",
+    "db:migrate": "bun scripts/migrate.ts",
+    "db:studio": "bun --bun x drizzle-kit studio"
+  },
+  "dependencies": {
+    "@better-auth/drizzle-adapter": "1.7.5",
+    "@offense-demo/config": "workspace:*",
+    "@offense-demo/errors": "workspace:*",
+    "@offense-demo/protocol": "workspace:*",
+    "@paralleldrive/cuid2": "3.3.0",
+    "drizzle-orm": "1.0.0-rc.4",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "drizzle-kit": "1.0.0-rc.4",
+    "riteway": "9.3.0"
+  }
+}

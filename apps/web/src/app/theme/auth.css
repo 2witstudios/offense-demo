@@ -1,0 +1,10 @@
+/* Auth-owned size and type tokens (ADR 0028). Theme variables only; classes stay in the markup. */
+@theme {
+  --spacing-auth-panel: 460px;
+  --spacing-auth-control: 54px;
+  --spacing-auth-step: 28px;
+  --spacing-auth-mark: 520px;
+  --spacing-auth-mark-top: 70px;
+  --spacing-auth-mark-right: 150px;
+  --container-auth-copy: 600px;
+}

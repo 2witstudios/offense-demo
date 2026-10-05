@@ -1,0 +1,86 @@
+name: Review record
+# Sets the review-record commit status on a PR head SHA from its published
+# independent review record. The main ruleset accepts that status
+# only from the review-record GitHub App, and the App key lives in the
+# `review-record` environment, which only main may use. Every trigger below
+# runs the workflow as it is on main and never checks out PR code.
+on:
+  # A push to the PR moves the head SHA; the new SHA starts pending.
+  pull_request_target:
+    types: [opened, reopened, synchronize, edited]
+  # /review posts the record link as a PR comment.
+  issue_comment:
+    types: [created, edited]
+  # Re-verify on demand: gh api repos/{repo}/dispatches -f event_type=review-record -F 'client_payload[pr]=N'
+  repository_dispatch:
+    types: [review-record]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number
+        required: true
+permissions: {}
+concurrency:
+  group: review-record-${{ github.event.pull_request.number || github.event.issue.number || github.event.client_payload.pr || inputs.pr }}
+  cancel-in-progress: false
+jobs:
+  # Until the owner creates the review-record App (GRD-6.2), verify is
+  # skipped with a notice instead of failing red on every PR. The gate never
+  # sets a status, so nothing reports success without a verified record.
+  gate:
+    name: Check the review-record App is configured
+    if: github.event_name != 'issue_comment' || github.event.issue.pull_request
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: review-record
+    permissions:
+      contents: read
+    outputs:
+      state: ${{ steps.gate.outputs.state }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.2'
+      - name: Check the App id and key
+        id: gate
+        env:
+          REVIEW_RECORD_APP_ID: ${{ vars.REVIEW_RECORD_APP_ID }}
+          REVIEW_RECORD_APP_KEY: ${{ secrets.REVIEW_RECORD_APP_KEY }}
+        run: bun scripts/review-record.ts gate
+  verify:
+    name: Verify the review record
+    needs: gate
+    if: needs.gate.outputs.state == 'enforce'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: review-record
+    # checkout reads main; statuses are written with the App token, not this one.
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.2'
+      - name: Mint a review-record App token
+        id: app
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.REVIEW_RECORD_APP_ID }}
+          private-key: ${{ secrets.REVIEW_RECORD_APP_KEY }}
+          permission-statuses: write
+          permission-pull-requests: read
+          permission-issues: read
+      - name: Verify the record and set the status
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          PAGESPACE_TOKEN: ${{ secrets.PAGESPACE_TOKEN }}
+          REVIEW_PR: ${{ github.event.pull_request.number || github.event.issue.number || github.event.client_payload.pr || inputs.pr }}
+        run: bun scripts/review-record.ts

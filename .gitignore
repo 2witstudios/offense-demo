@@ -1,0 +1,33 @@
+node_modules/
+.next/
+next-env.d.ts
+.turbo/
+.env
+.env.*
+!.env.example
+!.env.agent.example
+*.tsbuildinfo
+coverage/
+playwright-report/
+test-results/
+qualification-results/
+# bun verify keeps each stage's full output here.
+verify-logs/
+# AUTH-6.7 load harness run reports.
+apps/web/scripts/auth-load/reports/
+# pu runtime state stays local; its config and agent context are committed.
+.pu/*
+!.pu/config.yaml
+!.pu/agent-context.md
+.DS_Store
+# OpenCode state stays local; the scoped review command is committed.
+.opencode/*
+!.opencode/commands/
+.opencode/commands/*
+!.opencode/commands/review.md
+# Agent worktrees only; the rest of .claude/ stays visible to git.
+.claude/worktrees/
+.claude/ralph-loop.*.md
+
+# A proof's temporary hold suite (scripts/proof-postgres-support.ts); removed when the proof ends.
+apps/web/.proof-hold/

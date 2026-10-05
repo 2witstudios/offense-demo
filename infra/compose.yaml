@@ -1,0 +1,41 @@
+# The one shared local stack. Every checkout (the main checkout and each git
+# worktree) uses these same services and gets its own databases and Redis
+# namespaces from `bun slot:up`; see docs/decisions/0034-shared-stack-slots.md.
+# Host ports are overridable so two projects made from this template can run
+# their stacks side by side: set OFFENSE_DEMO_POSTGRES_PORT / OFFENSE_DEMO_REDIS_PORT (and
+# point DATABASE_URL / REDIS_URL in .env at the same ports).
+name: offense-demo
+services:
+  postgres:
+    image: postgres:18.3-alpine
+    # Every slot's dev server, test pools and e2e server share this cluster.
+    command: ['postgres', '-c', 'max_connections=300']
+    environment:
+      POSTGRES_DB: offense_demo
+      POSTGRES_USER: offense_demo
+      POSTGRES_PASSWORD: local-development-only
+    # Host port 15432 by default avoids colliding with common host-level
+    # Postgres installs.
+    ports: ['127.0.0.1:${OFFENSE_DEMO_POSTGRES_PORT:-15432}:5432']
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U offense_demo -d offense_demo']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:8.6.1-alpine
+    # 512 logical databases: each worktree slot's integration suites get
+    # their own (2 + its port block, up to 501), so a run's SCANs never walk
+    # another slot's keys (ADR 0034, ISSUE-237).
+    command:
+      ['redis-server', '--appendonly', 'no', '--save', '', '--databases', '512']
+    ports: ['127.0.0.1:${OFFENSE_DEMO_REDIS_PORT:-6379}:6379']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+volumes:
+  postgres-data:

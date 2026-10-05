@@ -1,0 +1,161 @@
+name: Deploy staging
+# Continuous deployment of main to the always-on Fly.io staging app
+# (AUTH-7.0, DEC-40). A main push deploys once the CI gate job and the Browser E2E
+# run are both green (scripts/staging-gate.ts, ISSUE-51); the gate includes
+# the dependency audit (ADR 0039). The release-only migrator app
+# (fly.migrate.toml) deploys first: its release command migrates as the
+# schema owner and it creates no machines. Only then does `fly deploy` build
+# and roll out the web app, which never holds the owner credential (ISSUE-102,
+# ADR 0041). Both build remotely from apps/web/Dockerfile. Production rollout is
+# a separate, human-gated step (AUTH-7.2/7.3) and is never automated here.
+on:
+  workflow_run:
+    workflows: [CI, Browser E2E]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+jobs:
+  ready:
+    name: Require a green CI gate and green E2E
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    # Both workflows also run on pull_request, so a PR whose source branch
+    # is named "main" would satisfy the branches filter: require the run to
+    # come from a push to this repository's main, never from a PR head.
+    # Nothing to deploy to until staging exists: set the repository variable
+    # STAGING_ENABLED=true once the Fly apps are created
+    # (docs/operations/deploy-staging.md).
+    if: >-
+      vars.STAGING_ENABLED == 'true' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      deploy: ${{ steps.decide.outputs.deploy }}
+      # Read by notify-drive below to name the failing step.
+      outcomes: >-
+        ready.checkout=${{ steps.checkout.outcome }}
+        ready.setup-bun=${{ steps.setup-bun.outcome }}
+        ready.decide=${{ steps.decide.outcome }}
+    steps:
+      - id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: setup-bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.2'
+      - id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          TRIGGER: ${{ github.event.workflow_run.name }}
+        run: bun scripts/staging-gate.ts --sha "$HEAD_SHA" --trigger "$TRIGGER"
+
+  deploy:
+    name: Deploy main to offense-demo-staging
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: ready
+    if: >-
+      !cancelled() &&
+      vars.STAGING_ENABLED == 'true' &&
+      (github.event_name == 'workflow_dispatch' ||
+       needs.ready.outputs.deploy == 'true')
+    env:
+      # The commit CI verified, used for checkout AND the image metadata so
+      # the deployed source and its stamped version can never diverge
+      # (GITHUB_SHA is the default-branch tip at run time, not this commit).
+      DEPLOY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    outputs:
+      # Read by notify-drive below to name the failing step.
+      outcomes: >-
+        deploy.checkout=${{ steps.checkout.outcome }}
+        deploy.setup-flyctl=${{ steps.setup-flyctl.outcome }}
+        deploy.migrate=${{ steps.migrate.outcome }}
+        deploy.deploy=${{ steps.deploy.outcome }}
+        deploy.readiness=${{ steps.readiness.outcome }}
+    steps:
+      - id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+          persist-credentials: false
+      - id: setup-flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
+      - id: migrate
+        name: Migrate
+        # The migrator app's own deploy token, scoped to this step: it can
+        # deploy only offense-demo-staging-migrate, whose sole secret is the
+        # owner credential. --update-only creates no machines, so only the
+        # release command's temporary machine ever holds that credential; a
+        # failed migration fails this step and the web deploy never runs.
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_MIGRATE_API_TOKEN }}
+        run: >-
+          flyctl deploy -c fly.migrate.toml --remote-only --update-only
+          --build-arg APP_VERSION="${DEPLOY_SHA::7}"
+          --build-arg GIT_COMMIT="$DEPLOY_SHA"
+      - id: deploy
+        name: Deploy
+        # The deploy token is scoped to this one step, not the job, so the
+        # checkout and setup actions never see it.
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: >-
+          flyctl deploy -a offense-demo-staging --remote-only --ha=false
+          --build-arg APP_VERSION="${DEPLOY_SHA::7}"
+          --build-arg GIT_COMMIT="$DEPLOY_SHA"
+      - id: readiness
+        name: Verify readiness
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if curl -fsS --max-time 20 https://offense-demo-staging.fly.dev/api/health/ready; then
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "staging did not become ready" >&2
+          exit 1
+
+  # Staging failures reach the drive's Incidents channel as ci.yml's do, not
+  # only Fly's own email. The message carries the app, the failing step
+  # (from the outcomes above), the commit and the run URL; this job holds
+  # no deploy or database credential, only the Incidents webhook, on the one
+  # step that posts. It checks out the trusted default branch, never the
+  # deployed commit, and runs even when the deploy job's checkout failed.
+  notify-drive:
+    name: Report a failed deploy to drive Incidents
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    needs: [ready, deploy]
+    if: failure()
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.2'
+      - name: Post the failure to the Incidents channel
+        env:
+          PAGESPACE_INCIDENTS_WEBHOOK_URL: ${{ secrets.PAGESPACE_INCIDENTS_WEBHOOK_URL }}
+          PAGESPACE_INCIDENTS_WEBHOOK_SECRET: ${{ secrets.PAGESPACE_INCIDENTS_WEBHOOK_SECRET }}
+          NOTIFY_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          NOTIFY_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          NOTIFY_OUTCOMES: ${{ needs.ready.outputs.outcomes }} ${{ needs.deploy.outputs.outcomes }}
+        run: >-
+          bun scripts/notify-drive.ts incidents
+          --deploy offense-demo-staging
+          --sha "$NOTIFY_SHA"
+          --run-url "$NOTIFY_RUN_URL"
+          --outcomes "$NOTIFY_OUTCOMES"

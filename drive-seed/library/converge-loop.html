@@ -1,0 +1,24 @@
+<h1>Converge loop</h1>
+<p><em>Universal prompt. Reused for every PR loop. It names no task, plan or PR: the loop is started with the PR number, and this page is the whole loop prompt. It replaces pasting a loop prompt into a session.</em></p>
+<p>Start it in the builder's worktree, once the PR is open:</p>
+<pre><code>/ralph-loop Run: pagespace pages read {{pageId:convergeLoop}} and converge PR #&lt;n&gt; by that page. --completion-promise CONVERGED --max-iterations 40</code></pre>
+<h2>Each iteration</h2>
+<ol>
+<li><strong>Scan.</strong> Read the PR's review threads, bot reviews and comments, and the required checks. Pick up bot review comments yourself: a comment from CodeRabbit, Codex or another bot is a finding to triage (<code>/triage</code>), never something to wait for a human to relay.</li>
+<li><strong>Fix.</strong> For each open finding that is in scope: fix it with a test (TDD), push, reply on the thread with the fixing commit, and resolve the thread you fixed. A thread that is <strong>fixed and replied to counts as done</strong>, whether or not the bot resolves it. A finding that is out of scope is filed (follow-up leaf or <code>ISSUE-n</code>) and replied to with the page id; that also counts as done.</li>
+<li><strong>Bot reviews.</strong> A bot review that is still pending, rate-limited or skipped is not a clean review. Wait for it instead of declaring the PR ready. If it is rate-limited or skipped and will not run again on its own, escalate <code>blocked</code>.</li>
+<li><strong>CI.</strong> Wait on CI without polling: run <code>gh pr checks &lt;n&gt; --watch --fail-fast</code> once in the background, and end the turn. Never loop <code>gh pr checks</code>.</li>
+<li><strong>Stalled.</strong> Keep the last scan's summary (open threads, failing checks, pending bots) in your turn text. If two consecutive scans are identical and you changed nothing in between, escalate <code>stalled</code>.</li>
+<li><strong>Third review pass.</strong> If an independent review of this PR's leaf would be its third pass, do not start or request another; escalate <code>needs-owner</code> with the open disagreement.</li>
+</ol>
+<h2>Escalate instead of spinning</h2>
+<p>When you cannot truthfully finish, pause the loop and tell your parent (or the owner) why, with one of these reasons. Never delete, move or edit the loop state, never end the loop yourself. Where the repository provides it, use <code>bun loop:escalate &lt;reason&gt; "&lt;what only the parent or owner can resolve&gt;"</code>, which keeps your iteration and prompt, notifies your parent and records the escalation on the PR.</p>
+<ul>
+<li><code>needs-owner</code>: a decision, secret, criterion change or anything only the owner or a bot operator can resolve.</li>
+<li><code>blocked</code>: a rate-limited or skipped bot review, an outage, or a prerequisite that is not merged.</li>
+<li><code>stalled</code>: two identical scans.</li>
+<li><code>out-of-scope</code>: the remaining work belongs to another leaf or story.</li>
+</ul>
+<p>Then stop; the parent closes or resumes the loop.</p>
+<h2>Done</h2>
+<p>The PR has converged when every thread is done as defined above, every bot review has run on the head SHA, every required check except <code>review-record</code> is green, and the handoff is current. Then check that the live <code>main</code> ruleset requires <code>review-record</code> with <code>gh api repos/{{repo}}/rules/branches/main --jq '[.[] | select(.type == "required_status_checks") | .parameters.required_status_checks[].context] | any(. == "review-record")'</code>. Only when it prints <code>true</code>, request the merge with <code>gh pr merge &lt;n&gt; --auto --merge</code>, never a direct merge: GitHub merges only once the independent review record mints <code>review-record</code> and every other required check passes. Otherwise request nothing and report "ready for owner merge" to your parent. Then output <code>&lt;promise&gt;CONVERGED&lt;/promise&gt;</code>. Output it only when it is true.</p>

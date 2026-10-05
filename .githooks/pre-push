@@ -1,0 +1,52 @@
+#!/bin/sh
+# Offense Demo pre-push hook. Opt in once per clone with: bun hooks:install
+# (sets core.hooksPath to .githooks). Runs the fast affected-graph gate so a
+# push cannot skip verification by accident. `bun check` remains the full gate
+# and CI is the enforcement of record; bypass deliberately with --no-verify.
+#
+# `bun check:affected` inspects the checked-out working tree, so it can only
+# vouch for HEAD. Each pushed ref (stdin: local-ref local-sha remote-ref
+# remote-sha) is therefore classified:
+#   - delete (all-zero local sha): nothing is sent, allowed;
+#   - commit equals HEAD (tags are peeled): verified once by the check;
+#   - commit already on a remote-tracking branch: nothing new, allowed;
+#   - anything else: refused, because this hook cannot verify it.
+set -eu
+
+refs=$(cat)
+cd "$(git rev-parse --show-toplevel)"
+
+head_commit=$(git rev-parse --verify --quiet 'HEAD^{commit}' || true)
+needs_check=0
+refused=0
+
+while read -r local_ref local_sha _remote_ref _remote_sha; do
+  case "$local_sha" in
+    *[!0]*) ;;
+    *) continue ;;
+  esac
+  commit=$(git rev-parse --verify --quiet "${local_sha}^{commit}" || true)
+  if [ -n "$commit" ] && [ "$commit" = "$head_commit" ]; then
+    needs_check=1
+  elif [ -n "$commit" ] &&
+    [ -n "$(git for-each-ref --count=1 --contains "$commit" refs/remotes)" ]; then
+    echo "pre-push: $local_ref is already on a remote-tracking branch; nothing new to verify." >&2
+  else
+    echo "pre-push: refusing $local_ref: it is not the checked-out commit, and bun check:affected can only verify HEAD." >&2
+    refused=1
+  fi
+done <<REFS
+$refs
+REFS
+
+if [ "$refused" -eq 1 ]; then
+  echo "pre-push: check that ref out and push it from there, or bypass deliberately with git push --no-verify." >&2
+  exit 1
+fi
+[ "$needs_check" -eq 1 ] || exit 0
+
+if [ -n "$(git status --porcelain)" ]; then
+  echo "pre-push: the working tree has uncommitted changes; the check covers the working tree, not exactly the pushed commit." >&2
+fi
+# git feeds ref data on stdin; keep it away from the check's child processes.
+exec bun check:affected </dev/null

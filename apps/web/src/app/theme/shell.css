@@ -1,0 +1,71 @@
+/* Shell-owned size and motion tokens (ADR 0028). Theme variables only; classes stay in the markup. */
+@theme {
+  --spacing-0: 0px;
+  --spacing-shell-hair: 2px;
+  --spacing-shell-count: 16px;
+  --spacing-shell-logo: 34px;
+  --spacing-shell-icons: 64px;
+  --spacing-flyout: 190px;
+  --spacing-flyout-shift: 6px;
+  --text-shell-tagline: 9.5px;
+  --text-shell-count: 10px;
+  --leading-shell-brand: 1;
+  --leading-shell-tagline: 1.5;
+  --leading-shell-count: 16px;
+}
+
+/* Named grid areas and minmax() tracks have no token-locked utility. */
+@utility grid-shell {
+  grid-template-columns: var(--spacing-sidebar) minmax(0, 1fr) var(
+      --spacing-rail
+    );
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'sidebar topbar topbar'
+    'sidebar main rail';
+}
+
+/* No rail: sidebar beside the topbar and content column. */
+@utility grid-shell-single {
+  grid-template-columns: var(--spacing-sidebar) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'sidebar topbar'
+    'sidebar main';
+}
+
+@utility grid-shell-reflow {
+  grid-template-columns: var(--spacing-sidebar) minmax(0, 1fr);
+  grid-template-areas:
+    'sidebar topbar'
+    'sidebar main'
+    'sidebar rail';
+}
+
+@utility grid-shell-icons {
+  grid-template-columns: var(--spacing-shell-icons) minmax(0, 1fr);
+}
+
+@utility area-sidebar {
+  grid-area: sidebar;
+}
+
+@utility area-topbar {
+  grid-area: topbar;
+}
+
+@utility area-main {
+  grid-area: main;
+}
+
+@utility area-rail {
+  grid-area: rail;
+}
+
+@utility h-rail-viewport {
+  height: calc(100vh - var(--spacing-topbar));
+}
+
+@utility grid-cols-rail-sections {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}

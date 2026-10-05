@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "name": "offense-demo",
+  "displayName": "Offense Demo",
+  "repo": "2witstudios/offense-demo",
+  "owner": "2witstudios",
+  "autonomyEnv": "AGENT_AUTONOMOUS",
+  "gates": {
+    "integrationCommand": "bun test:integration",
+    "requiredChecks": ["CI gate", "Playwright E2E"]
+  },
+  "pagespace": {
+    "apiUrl": "https://pagespace.ai",
+    "driveName": "Offense Demo",
+    "driveId": null,
+    "pages": {
+      "roadmap": null,
+      "conventions": null,
+      "issues": null,
+      "bugs": null,
+      "testCoverage": null,
+      "agentTooling": null,
+      "docDrift": null,
+      "userFeedback": null,
+      "backlog": null,
+      "pendingDecisions": null,
+      "plans": null,
+      "prompts": null,
+      "reviews": null,
+      "library": null,
+      "builderContract": null,
+      "reviewerContract": null,
+      "orchestratorLoop": null,
+      "convergeLoop": null,
+      "agentMemory": null,
+      "agents": null,
+      "documentation": null,
+      "docsRunsSheet": null,
+      "technicalDocs": null,
+      "userDocs": null,
+      "blog": null
+    },
+    "channels": {
+      "standup": null,
+      "incidents": null,
+      "sprintRoom": null,
+      "epicUpdates": null
+    },
+    "agents": {
+      "scrumMaster": null,
+      "builder": null,
+      "reviewer": null,
+      "documentation": null
+    }
+  }
+}

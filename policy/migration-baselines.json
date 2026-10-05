@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "baselines": [
+    {
+      "baseMigrationsHash": "sha256:f5e77ece2e6da7d71047bf8cdc648ea8b102f8548dc3cc83f1d25a90dec8b04c",
+      "adr": "docs/decisions/0038-drizzle-1-baseline.md",
+      "owner": "platform",
+      "reason": "Template extraction: replaces the four imported product migrations (baseline plus three forward migrations) with one generic platform baseline (20261005034344_baseline) carrying the auth, email-delivery, outbox and seed tables, their indexes and the offense_demo_web/offense_demo_realtime runtime roles; inert once the baseline lands on the default branch.",
+      "reviewBy": "2026-11-30"
+    }
+  ]
+}

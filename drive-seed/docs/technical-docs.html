@@ -1,0 +1,44 @@
+<style>
+:root{--bg:#ffffff;--fg:#171717;--muted:#6b7280;--accent:#7c3aed;--card:#f5f5f4;--border:#e5e7eb}
+.dark{--bg:#111213;--fg:#f4f4f5;--muted:#a1a1aa;--card:#1b1c1f;--border:#2c2d31}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding:48px 24px}
+.eyebrow{color:var(--accent);font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:12px;margin:0 0 8px}
+h1{font-size:34px;line-height:1.2;margin:0 0 12px}
+h2{font-size:22px;margin:32px 0 8px}
+p.lede{color:var(--muted);font-size:18px;margin:0 0 24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin:24px 0}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;text-decoration:none;color:inherit;display:block}
+.card:hover{border-color:var(--accent)}
+.card h3{margin:0 0 6px;font-size:16px}
+.card p{margin:0;color:var(--muted);font-size:14px}
+footer.docfoot{margin-top:48px;padding-top:16px;border-top:1px solid var(--border);color:var(--muted);font-size:13px}
+code{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:1px 6px;font-size:.9em}
+</style>
+
+<main class="wrap" data-doc-key="technical">
+  <p class="eyebrow">{{displayName}}</p>
+  <h1>Technical Documentation</h1>
+  <p class="lede">How {{displayName}} is built: architecture, development workflow and operations, verified against the repository.</p>
+
+  <div class="grid">
+    <a class="card" href="{{pageUrl:pageRegistry}}">
+      <h3>Page Registry</h3>
+      <p>Machine-readable index of every documentation page.</p>
+    </a>
+    <a class="card" href="{{pageUrl:docsRunsSheet}}">
+      <h3>Documentation Runs</h3>
+      <p>Every pipeline and review run, with provenance.</p>
+    </a>
+    <a class="card" href="{{pageUrl:reviewQueue}}">
+      <h3>Review Queue</h3>
+      <p>Accuracy, adversarial, prose, and anti-slop findings.</p>
+    </a>
+  </div>
+
+  <h2>Status</h2>
+  <p>No technical pages are published yet. The Documentation Agent adds Architecture, Development and Operations pages under this hub as merges land. Source of truth is the repository at <code>{{repo}}</code>; each page cites the commit it was verified against.</p>
+
+  <footer class="docfoot">Maintained by the {{displayName}} Documentation Agent</footer>
+</main>

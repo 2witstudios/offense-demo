@@ -1,0 +1,8 @@
+<h1>Pending decisions</h1>
+<p>Decisions an agent made on the owner's behalf. Each is a <code>DEC-n</code> task created by <code>bun decision:record "&lt;decision&gt;" --context &lt;pageId&gt; [--why "&lt;reason&gt;"]</code>, linked to where it was made, and announced in {{page:epicUpdates}}.</p>
+<h2>Rules</h2>
+<ul>
+<li>A decision stays open (To Do) until the owner moves it to <strong>Confirmed</strong> or <strong>Overruled</strong>. Agents never close a decision.</li>
+<li>Work may proceed on the decision while it is open; an Overruled decision becomes a follow-up leaf or issue that undoes it.</li>
+<li>Never bury a decision as "please confirm" in prose, a handoff or a PR comment — record it here.</li>
+</ul>

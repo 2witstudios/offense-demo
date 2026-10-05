@@ -1,0 +1,14 @@
+[
+  {
+    "pattern": "\\bUUIDs?\\b",
+    "term": "UUID",
+    "adr": "0018",
+    "use": "cuid2 application identifiers (UUIDs only where docs/decisions/0018 lists an exception)"
+  },
+  {
+    "pattern": "\\b(?:backfills?|backward[- ]compat\\w*|legacy mode|dual[- ]shape)\\b",
+    "term": "compatibility or backfill",
+    "adr": "0023",
+    "use": "the greenfield baseline: rewrite or remove, never keep a compat path or backfill"
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "name": "@offense-demo/realtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test src",
+    "test:integration": "bun ../../scripts/test-integration.ts",
+    "dev": "bun --watch src/start.ts",
+    "start": "NODE_ENV=production bun src/start.ts"
+  },
+  "dependencies": {
+    "@offense-demo/clock": "workspace:*",
+    "@offense-demo/config": "workspace:*",
+    "@offense-demo/db": "workspace:*",
+    "@offense-demo/logger": "workspace:*",
+    "@offense-demo/observability": "workspace:*",
+    "@offense-demo/protocol": "workspace:*",
+    "@offense-demo/redis": "workspace:*"
+  },
+  "devDependencies": {
+    "riteway": "9.3.0"
+  }
+}

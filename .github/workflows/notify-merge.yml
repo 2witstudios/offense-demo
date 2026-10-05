@@ -1,0 +1,150 @@
+name: Notify drive on merge
+on:
+  pull_request:
+    types: [closed]
+permissions: {}
+concurrency:
+  group: notify-drive-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+jobs:
+  sprint-room:
+    name: Post the merge to Sprint Room
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    if: github.event.pull_request.merged == true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.2'
+      - name: Post the merge to the Sprint Room channel
+        env:
+          PAGESPACE_SPRINT_ROOM_WEBHOOK_URL: ${{ secrets.PAGESPACE_SPRINT_ROOM_WEBHOOK_URL }}
+          PAGESPACE_SPRINT_ROOM_WEBHOOK_SECRET: ${{ secrets.PAGESPACE_SPRINT_ROOM_WEBHOOK_SECRET }}
+          NOTIFY_PR: ${{ github.event.pull_request.number }}
+          NOTIFY_TITLE: ${{ github.event.pull_request.title }}
+          NOTIFY_URL: ${{ github.event.pull_request.html_url }}
+          NOTIFY_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          NOTIFY_BASE: ${{ github.event.pull_request.base.ref }}
+          NOTIFY_TASKS: ${{ github.event.pull_request.title }} ${{ github.event.pull_request.head.ref }} ${{ github.event.pull_request.body }}
+        run: >-
+          bun scripts/notify-drive.ts sprint-room
+          --pr "$NOTIFY_PR"
+          --title "$NOTIFY_TITLE"
+          --url "$NOTIFY_URL"
+          --sha "$NOTIFY_SHA"
+          --base "$NOTIFY_BASE"
+          --tasks "$NOTIFY_TASKS"
+
+  # Moves the PR's tasks to Merged and, after the review enforcement cutoff,
+  # records post-merge review debt for a merge without review-record.
+  board:
+    name: Move merged tasks and record review debt
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    if: github.event.pull_request.merged == true
+    permissions:
+      contents: read
+      statuses: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.2'
+      - name: Follow up the merge on the board
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PAGESPACE_TOKEN: ${{ secrets.PAGESPACE_TOKEN }}
+          PAGESPACE_SPRINT_ROOM_WEBHOOK_URL: ${{ secrets.PAGESPACE_SPRINT_ROOM_WEBHOOK_URL }}
+          PAGESPACE_SPRINT_ROOM_WEBHOOK_SECRET: ${{ secrets.PAGESPACE_SPRINT_ROOM_WEBHOOK_SECRET }}
+          MERGE_PR: ${{ github.event.pull_request.number }}
+          MERGE_TITLE: ${{ github.event.pull_request.title }}
+          MERGE_URL: ${{ github.event.pull_request.html_url }}
+          MERGE_BODY: ${{ github.event.pull_request.body }}
+          MERGE_BRANCH: ${{ github.event.pull_request.head.ref }}
+          MERGE_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          MERGE_MERGED_AT: ${{ github.event.pull_request.merged_at }}
+        run: bun scripts/merge-followup.ts
+
+  documentation-event:
+    name: Send structured documentation event
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.fork == false
+    steps:
+      - name: Start the dispatch budget with the job
+        run: echo "DOC_BUDGET_ENDS_AT=$(( $(date +%s) + 42 * 60 ))" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.2'
+      - name: Classify merged files
+        env:
+          DOC_EVENT_ID: ${{ github.event.pull_request.id }}-${{ github.event.pull_request.merge_commit_sha }}
+          DOC_OCCURRED_AT: ${{ github.event.pull_request.merged_at }}
+          DOC_REPOSITORY: ${{ github.repository }}
+          DOC_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          DOC_COMMIT: ${{ github.event.pull_request.merge_commit_sha }}
+          DOC_PR_NUMBER: ${{ github.event.pull_request.number }}
+          DOC_TITLE: ${{ github.event.pull_request.title }}
+          DOC_PR_URL: ${{ github.event.pull_request.html_url }}
+          DOC_AUTHOR: ${{ github.event.pull_request.user.login }}
+          DOC_MERGED_BY: ${{ github.event.sender.login }}
+          DOC_BRANCH: ${{ github.event.pull_request.head.ref }}
+          DOC_BODY: ${{ github.event.pull_request.body }}
+          PAGESPACE_TOKEN: ${{ secrets.PAGESPACE_TOKEN }}
+        run: |
+          DOC_CHANGED_FILES="$(git diff --name-only \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.merge_commit_sha }}" | paste -sd, -)"
+          export DOC_CHANGED_FILES
+          bun scripts/dispatch-docs.ts
+      - name: Report the failed dispatch to incidents
+        if: failure()
+        env:
+          PAGESPACE_INCIDENTS_WEBHOOK_URL: ${{ secrets.PAGESPACE_INCIDENTS_WEBHOOK_URL }}
+          PAGESPACE_INCIDENTS_WEBHOOK_SECRET: ${{ secrets.PAGESPACE_INCIDENTS_WEBHOOK_SECRET }}
+          DOCS_FAILURE_PR: ${{ github.event.pull_request.number }}
+          DOCS_FAILURE_TITLE: ${{ github.event.pull_request.title }}
+          DOCS_FAILURE_URL: ${{ github.event.pull_request.html_url }}
+        run: >-
+          bun scripts/notify-drive.ts incidents
+          --pr "$DOCS_FAILURE_PR"
+          --title "$DOCS_FAILURE_TITLE"
+          --url "$DOCS_FAILURE_URL"
+
+  fork-merge-notice:
+    name: Notice the skipped documentation event for a fork merge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.fork == true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.2'
+      - name: Report the skipped dispatch to incidents
+        env:
+          PAGESPACE_INCIDENTS_WEBHOOK_URL: ${{ secrets.PAGESPACE_INCIDENTS_WEBHOOK_URL }}
+          PAGESPACE_INCIDENTS_WEBHOOK_SECRET: ${{ secrets.PAGESPACE_INCIDENTS_WEBHOOK_SECRET }}
+          DOCS_FAILURE_PR: ${{ github.event.pull_request.number }}
+          DOCS_FAILURE_URL: ${{ github.event.pull_request.html_url }}
+        run: >-
+          bun scripts/notify-drive.ts incidents
+          --pr "$DOCS_FAILURE_PR"
+          --url "$DOCS_FAILURE_URL"
+          --skipped "true"

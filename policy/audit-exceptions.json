@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "advisories": [
+    {
+      "advisory": "GHSA-82fw-gwwq-j7x9",
+      "packages": ["@vitest/mocker", "vitest"],
+      "dependencyPath": "riteway 9.3.0 (devDependency of every testing workspace) > vitest 3.2.7 > @vitest/mocker 3.2.7. better-auth lists vitest only as an optional peer, so riteway is what installs it.",
+      "reason": "Path traversal in @vitest/mocker's redirect mock (moderate). Fixed in vitest 4.1.11, but riteway 9.x hard-depends on vitest ^3.2.4 for its riteway/vitest entry.",
+      "unreachable": "Dev-only and never loaded: Offense Demo's tests run on bun:test through riteway/bun, nothing imports riteway/vitest, vitest or better-auth/test, and no production image installs dev dependencies.",
+      "owner": "platform",
+      "adr": "docs/decisions/0039-dated-dependency-audit-exceptions.md",
+      "reviewBy": "2026-12-23"
+    },
+    {
+      "advisory": "GHSA-vfj7-8cjw-p6xm",
+      "packages": ["braces"],
+      "dependencyPath": "eslint-config-next (devDependency) > @next/eslint-plugin-next > fast-glob > micromatch > braces 3.0.3.",
+      "reason": "Stack-exhaustion DoS on deeply nested brace patterns (high). No patched braces release exists yet (3.0.3 is the latest published version).",
+      "unreachable": "Dev-only lint tooling: braces expands glob patterns written in this repository's own ESLint configuration, never untrusted input, and no production image installs dev dependencies.",
+      "owner": "platform",
+      "adr": "docs/decisions/0039-dated-dependency-audit-exceptions.md",
+      "reviewBy": "2026-11-30"
+    }
+  ]
+}

@@ -1,0 +1,242 @@
+@import 'tailwindcss';
+@import './theme/reset.css';
+@import './theme/components.css';
+@import './theme/shell.css';
+@import './theme/auth.css';
+
+/* Tailwind v4 is configured here and nowhere else (ADR 0028): no
+   tailwind.config.*, no arbitrary values, no default palette. Class names
+   come from the theme below; a class with no token behind it generates no CSS
+   and fails lint. Color utilities resolve through the `:root` custom
+   properties, so the theme switch restyles the page with no class changes and
+   `dark:` variants are banned. */
+
+/* Design tokens — the neutral placeholder palette: slate surfaces and an
+   indigo accent. Change colors here (and mirror the shared ones in
+   features/auth/brand-palette.ts; brand-palette.test.ts keeps them equal).
+   Each color token is written once as light-dark(<light>, <dark>) and
+   resolves through color-scheme, which <html data-theme> selects (ADR 0027):
+     dark   → dark only (the default when no preference is saved)
+     light  → light only
+     system → light dark, following prefers-color-scheme live, no JS.
+   The server renders data-theme from the viewer's cookie; the theme provider
+   rewrites it on a switch. Every color token must use light-dark()
+   (globals-css.test.ts), so no mode is ever left unset, and every declared
+   text and UI pairing holds WCAG AA in both schemes
+   (palette-contrast.test.ts). */
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='system'] {
+  color-scheme: light dark;
+}
+
+:root {
+  /* Surfaces — cool greys stepping toward white in light, slate stepping up
+     from near-black in dark. */
+  --background: light-dark(#f5f6f8, #0f1117);
+  --surface: light-dark(#fafbfc, #151821);
+  --surface-raised: light-dark(#ffffff, #1b1f2a);
+  --surface-overlay: light-dark(#eceef2, #232835);
+  --surface-sunken: light-dark(#e6e8ed, #0a0c10);
+
+  /* The stage — a dark slate panel in both schemes for the product's stage
+     moments (the auth panel), with its own ink and accent. */
+  --surface-stage: light-dark(#1e2230, #1e2230);
+  --stage-text: light-dark(#f5f6f8, #f5f6f8);
+  --stage-text-muted: light-dark(#b9bfcc, #b9bfcc);
+  --stage-accent: light-dark(#a5b4fc, #a5b4fc);
+  --stage-accent-strong: light-dark(#c7d2fe, #c7d2fe);
+  --stage-accent-text: light-dark(#1e2230, #1e2230);
+
+  /* Borders. */
+  --border: light-dark(#dde0e6, #272c39);
+  --border-strong: light-dark(#b8bec9, #3c4354);
+
+  /* Text — three quiet steps. */
+  --text: light-dark(#161922, #eef0f4);
+  --text-muted: light-dark(#4a5160, #b3b9c5);
+  --text-faint: light-dark(#585f6e, #8e95a3);
+
+  /* Accent — indigo with white ink in light, soft indigo with deep ink in
+     dark. */
+  --accent: light-dark(#4338ca, #a5b4fc);
+  --accent-strong: light-dark(#3730a3, #c7d2fe);
+  --accent-soft: light-dark(rgba(67, 56, 202, 0.08), rgba(165, 180, 252, 0.12));
+  --accent-text: light-dark(#ffffff, #1e1b4b);
+
+  /* Semantic status: online, live/danger, and caution (away). */
+  --online: light-dark(#1d7a48, #6fcf97);
+  --live: light-dark(#b42335, #f87171);
+  --live-soft: light-dark(rgba(180, 35, 53, 0.1), rgba(248, 113, 113, 0.14));
+  --gold: light-dark(#8a5a00, #f2c66d);
+  --gold-soft: light-dark(rgba(138, 90, 0, 0.1), rgba(242, 198, 109, 0.12));
+  --gold-border: light-dark(rgba(138, 90, 0, 0.4), rgba(242, 198, 109, 0.35));
+
+  /* Feedback */
+  --focus-ring: 0 0 0 2px var(--background), 0 0 0 4px var(--accent);
+
+  /* Elevation — nearly flat in dark; surfaces separate through tone. */
+  --elevation-1: 0 1px 2px
+    light-dark(rgba(22, 25, 34, 0.08), rgba(0, 0, 0, 0.35));
+  --elevation-2: 0 2px 12px
+    light-dark(rgba(22, 25, 34, 0.1), rgba(0, 0, 0, 0.35));
+  --elevation-3: 0 12px 40px
+    light-dark(rgba(22, 25, 34, 0.14), rgba(0, 0, 0, 0.5));
+}
+
+/* Colors. Names mirror the `:root` tokens; text ink is `ink` so classes read
+   `text-ink-muted`, not `text-text-muted`. `inline` makes utilities emit
+   var(--token) directly instead of a second theme variable. */
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-stage: var(--surface-stage);
+  --color-stage-ink: var(--stage-text);
+  --color-stage-ink-muted: var(--stage-text-muted);
+  --color-stage-accent: var(--stage-accent);
+  --color-stage-accent-strong: var(--stage-accent-strong);
+  --color-stage-accent-ink: var(--stage-accent-text);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-ink: var(--text);
+  --color-ink-muted: var(--text-muted);
+  --color-ink-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-text);
+  --color-online: var(--online);
+  --color-live: var(--live);
+  --color-live-soft: var(--live-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-gold-border: var(--gold-border);
+
+  --shadow-1: var(--elevation-1);
+  --shadow-2: var(--elevation-2);
+  --shadow-3: var(--elevation-3);
+}
+
+@theme {
+  /* Spacing scale (4px base). Sizes, gaps, padding and margins all read it. */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-5: 20px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+  --spacing-10: 40px;
+  --spacing-12: 48px;
+  --spacing-16: 64px;
+
+  /* Radius scale: restrained, substantial. `rounded-full` is built in. */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-round: 999px;
+
+  /* Typography scale. */
+  --text-2xs: 0.6875rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-md: 1rem;
+  --text-lg: 1.1875rem;
+  --text-xl: 1.4375rem;
+  --text-2xl: 1.875rem;
+  --text-3xl: 2.5rem;
+  /* Display headline (sign-in steps). */
+  --text-display: 4.5rem;
+  --leading-tight: 1.15;
+  --leading-normal: 1.6;
+  --leading-display: 1.02;
+  --font-body:
+    var(--font-face-sans), ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    sans-serif;
+  --font-display:
+    var(--font-face-sans), ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
+    sans-serif;
+  --font-weight-book: 480;
+  --font-weight-semibold: 600;
+  --font-weight-strong: 650;
+  --font-weight-bold: 700;
+  --font-weight-heavy: 750;
+  --font-weight-black: 800;
+  --ease-standard: ease;
+  --tracking-display: -0.03em;
+  --tracking-tighter: -0.02em;
+  --tracking-snug: -0.015em;
+  --tracking-tight: -0.01em;
+  --tracking-slight: 0.01em;
+  --tracking-wide: 0.02em;
+  --tracking-wider: 0.1em;
+  --tracking-widest: 0.16em;
+
+  /* Breakpoints are desktop-first. `max-<name>:` applies at or below the
+     width the name stands for; the token is the first width outside the
+     range (1281px → max-wide: is <= 1280px), which keeps the ranges the
+     stylesheets used before the transition. */
+  --breakpoint-wide: 1281px;
+  --breakpoint-reflow: 1181px;
+  --breakpoint-rail: 1101px;
+  --breakpoint-tiles: 961px;
+  --breakpoint-compact: 901px;
+  --breakpoint-narrow: 641px;
+  --breakpoint-tiny: 561px;
+
+  /* Layout metrics. */
+  --spacing-sidebar: 232px;
+  --spacing-rail: 316px;
+  --spacing-topbar: 60px;
+}
+
+@custom-variant short (@media (max-height: 660px));
+
+@layer base {
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    border-radius: var(--radius-sm);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@offense-demo/redis",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./namespaces": "./src/namespaces.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test src",
+    "test:integration": "bun ../../scripts/test-integration.ts"
+  },
+  "dependencies": {
+    "@offense-demo/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@offense-demo/config": "workspace:*",
+    "@paralleldrive/cuid2": "3.3.0",
+    "riteway": "9.3.0"
+  }
+}

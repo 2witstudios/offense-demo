@@ -1,0 +1,20 @@
+{
+  "name": "@offense-demo/logger",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "bun test src"
+  },
+  "dependencies": {
+    "pino": "10.3.1"
+  },
+  "devDependencies": {
+    "@offense-demo/config": "workspace:*",
+    "riteway": "9.3.0"
+  }
+}

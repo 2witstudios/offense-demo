@@ -1,0 +1,112 @@
+# Fly.io app definition for the offense-demo org's always-on staging
+# environment (AUTH-7.0, DEC-40). See docs/operations/deploy-staging.md for the
+# create -> secrets -> deploy -> verify -> rollback -> destroy runbook; every
+# non-default line below is explained inline. Schema verified against the
+# installed flyctl (v0.4.105) and https://fly.io/docs/reference/configuration/.
+#
+# App name: replace before first `fly launch`/`fly deploy` if the owner picks
+# a different one; it fixes the hostname https://<app>.fly.dev (no custom
+# domain per the task's owner decisions).
+app = "offense-demo-staging"
+
+# Chicago (ord): closest Fly region to the owner (America/Chicago). Staging
+# has no user-facing latency requirement; this only sets where the single
+# machine lives.
+primary_region = "ord"
+
+# ISSUE-214: Fly sends kill_signal (SIGINT by default, which start.ts
+# handles) and SIGKILLs the machine kill_timeout seconds later (default 5).
+# The server drains for up to SHUTDOWN_DRAIN_DEADLINE_MS (25 s,
+# apps/web/src/server/shutdown-budget.ts): in-flight requests, then auth
+# mail work handed off past its answer, then the pools, and it logs any
+# work the deadline cuts off before forcing its own exit. 35 s outlasts
+# that with 10 s margin; scripts/verify-deploy-config.ts checks the two.
+kill_timeout = 35
+
+[build]
+  # apps/web/Dockerfile builds the whole monorepo context; run `fly deploy`
+  # from the repository root so this relative path resolves.
+  dockerfile = "apps/web/Dockerfile"
+
+# No [deploy] release_command: migrations run once per release as a
+# pipeline step (docs/operations/production.md "## Releases"), from the
+# release-only migrator app (fly.migrate.toml, ADR 0041), deployed first by
+# .github/workflows/deploy-staging.yml. Fly secrets are app-wide, so a
+# release command here would put the schema owner credential on every web
+# machine (ISSUE-102). This app holds DATABASE_URL as the DML-only offense_demo_web
+# role and refuses to start as any role that can create or alter schema
+# objects, or with MIGRATION_DATABASE_URL in its environment.
+
+[env]
+  # Non-secret configuration. Secrets (BETTER_AUTH_SECRET,
+  # RECIPIENT_HASH_SECRET, RESEND_API_KEY, AUTH_EMAIL_FROM,
+  # RESEND_WEBHOOK_SECRET, OPS_PROBE_TOKEN, DATABASE_URL, REDIS_URL) are set
+  # with `fly secrets import`, never written here (fly.toml
+  # is committed; scripts/verify-deploy-config.ts refuses a database URL here).
+  PORT = "8080"
+  PUBLIC_APP_URL = "https://offense-demo-staging.fly.dev"
+  REDIS_NAMESPACE = "offense-demo"
+  LOG_LEVEL = "info"
+  # AUTH_TRUSTED_PROXIES: fly-proxy terminates the client TLS connection and
+  # reaches the app over the machine's private IPv4 link (the app binds
+  # 0.0.0.0, as https://fly.io/docs/networking/app-services/ requires), so
+  # the socket peer the ingress sees is fly-proxy, not the caller. Measured
+  # on staging (ISSUE-162, 2026-09-28): every public connection arrives from
+  # the machine's default gateway (172.19.3.97 on that host), never from 6PN
+  # (fdaa::/8). `gateway` trusts exactly that one address, read from
+  # /proc/net/route at start (apps/web/src/server/trusted-proxies.ts); a
+  # trusted peer's Fly-Client-IP then names the caller
+  # (apps/web/src/features/auth/client-ip.ts). DEC-39 (supersedes DEC-36):
+  # no range is trusted — not 6PN, which every machine and WireGuard peer in
+  # the org shares, nor 172.16.0.0/12 or Fly's public edge. With no single
+  # gateway it trusts nothing and logs ingress.trusted_proxy.unresolved. See
+  # docs/operations/deploy-staging.md "Client identity on Fly".
+  AUTH_TRUSTED_PROXIES = "gateway"
+
+[http_service]
+  # Must match Dockerfile EXPOSE and the PORT env above.
+  internal_port = 8080
+  # Reject plaintext; fly-proxy issues the TLS cert for <app>.fly.dev.
+  force_https = true
+  # Owner decision DEC-40 (confirmed 2026-09-29): staging is always on.
+  # One machine keeps running and fly-proxy never stops it for idleness,
+  # about $3.99/month for this VM in ord (docs/operations/deploy-staging.md
+  # "Cost"). auto_start_machines restarts it if it ever stops otherwise.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    # Fly's liveness probe: process aliveness only, no dependency calls.
+    # This is what schedules a restart, not what gates traffic. The port
+    # opens before Next prepares and answers this at once (ISSUE-172).
+    grace_period = "10s"
+    interval = "15s"
+    method = "GET"
+    path = "/api/health/live"
+    timeout = "2s"
+
+  [[http_service.checks]]
+    # Readiness: 200 only when not draining AND Postgres and Redis answer
+    # within 2s (apps/web/src/app/api/health/ready/route.ts), and 503 until
+    # start-up work finishes (apps/web/src/server/listen-first.ts). fly-proxy
+    # only routes traffic to a machine passing its checks. Measured over 13
+    # boots (ISSUE-172, ISSUE-194, 2026-09-29): this check first passes
+    # 7.41-9.28s after the machine starts, p95 9.28s, so 15s keeps a 5.72s
+    # margin (docs/operations/deploy-staging.md "Always-on behavior").
+    grace_period = "15s"
+    interval = "15s"
+    method = "GET"
+    path = "/api/health/ready"
+    timeout = "3s"
+
+[[vm]]
+  # Smallest Fly VM size. Memory measured locally (docker run --memory,
+  # production config, against the *_test stack): idle ~125MiB, ~156MiB
+  # after a few SSR page hits, against a 256mb container limit (61% used,
+  # ~100MiB headroom). 256mb (Fly's minimum increment) boots and answers
+  # /api/health/ready but leaves little margin for concurrent staging
+  # traffic; 512mb is the smallest size with real headroom under load. See
+  # docs/operations/deploy-staging.md "Cost" for the full measurement.
+  size = "shared-cpu-1x"
+  memory = "512mb"

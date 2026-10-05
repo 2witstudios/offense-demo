@@ -1,0 +1,15 @@
+{
+  "coverage": {
+    "@offense-demo/auth": { "lines": 100, "functions": 100 },
+    "@offense-demo/config": { "lines": 75, "functions": 85 },
+    "@offense-demo/db": { "lines": 90, "functions": 30 },
+    "@offense-demo/domain": { "lines": 95, "functions": 100 },
+    "@offense-demo/errors": { "lines": 100, "functions": 100 },
+    "@offense-demo/logger": { "lines": 100, "functions": 65 },
+    "@offense-demo/observability": { "lines": 95, "functions": 85 },
+    "@offense-demo/protocol": { "lines": 100, "functions": 100 },
+    "@offense-demo/realtime": { "lines": 84, "functions": 81 },
+    "@offense-demo/redis": { "lines": 15, "functions": 65 },
+    "@offense-demo/web": { "lines": 90, "functions": 85 }
+  }
+}

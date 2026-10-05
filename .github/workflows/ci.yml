@@ -1,0 +1,198 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+  # bun policy lists open PRs to catch ADR and migration number clashes.
+  pull-requests: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+# Actions are pinned to full commit SHAs with the version as a trailing
+# comment; Dependabot proposes the bumps (ADR 0040, `bun policy` enforces).
+# No shared task-output cache: correctness runs fresh; setup-bun caches its binary.
+jobs:
+  checks:
+    name: ${{ matrix.task }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        task:
+          [
+            format:check,
+            lint,
+            policy,
+            knip,
+            duplication,
+            invariants,
+            evidence,
+            metrics:check,
+            typecheck,
+            test,
+            build,
+          ]
+    env:
+      TURBO_TELEMETRY_DISABLED: '1'
+      NEXT_TELEMETRY_DISABLED: '1'
+      # No DATABASE_URL or REDIS_URL here on purpose: this job declares no
+      # services, and none of these static/unit/build gates parse or dial
+      # them (environment is validated lazily at runtime, not at build).
+      PUBLIC_APP_URL: https://ci.example.invalid
+      APP_VERSION: ci
+      GIT_COMMIT: ${{ github.sha }}
+      # Nonempty sentinels: the `build` task's check:build-isolation step
+      # (AUTH-6.3) greps the compiled client bundle for these exact values
+      # to prove no server secret leaks into browser-shipped code. An empty
+      # value here would let that scan search for "" and never find a real
+      # leak. BETTER_AUTH_SECRET and RECIPIENT_HASH_SECRET must each satisfy
+      # config's 64-char shape.
+      BETTER_AUTH_SECRET: ci-isolation-sentinel-auth-0000000000000000000000000000000000000
+      RECIPIENT_HASH_SECRET: ci-isolation-sentinel-recipient-hash-000000000000000000000000000
+      RESEND_API_KEY: ci-isolation-sentinel-resend-key
+      RESEND_WEBHOOK_SECRET: ci-isolation-sentinel-webhook-secret
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.2'
+      - run: bun install --frozen-lockfile
+      - run: bun run ${{ matrix.task }}
+        env:
+          GH_TOKEN: ${{ matrix.task == 'policy' && github.token || '' }}
+
+  audit:
+    name: Dependency vulnerability audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.2'
+      - run: bun install --frozen-lockfile
+      - run: bun run audit
+
+  migrations:
+    name: Migration journal collision guard
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    # Full history: the guard compares the committed journal against the
+    # merge base with origin/main, so a shallow checkout cannot run it.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.2'
+      - run: bun migrations:check
+
+  integration:
+    name: Infrastructure contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      TURBO_TELEMETRY_DISABLED: '1'
+      NEXT_TELEMETRY_DISABLED: '1'
+      DATABASE_URL: postgres://offense_demo:ci-only@127.0.0.1:5432/offense_demo_test
+      TEST_DATABASE_URL: postgres://offense_demo:ci-only@127.0.0.1:5432/offense_demo_test
+      REDIS_URL: redis://127.0.0.1:6379/1
+      TEST_REDIS_URL: redis://127.0.0.1:6379/1
+      REDIS_NAMESPACE: ci
+      PUBLIC_APP_URL: http://127.0.0.1:3100
+      NODE_ENV: development
+      FOUNDATION_PROOF_ENABLED: 'true'
+      APP_VERSION: ci
+      GIT_COMMIT: ${{ github.sha }}
+    services:
+      postgres:
+        image: postgres:18.3-alpine
+        env:
+          POSTGRES_DB: offense_demo_test
+          POSTGRES_USER: offense_demo
+          POSTGRES_PASSWORD: ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U offense_demo -d offense_demo_test"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:8.6.1-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.2'
+      - run: bun install --frozen-lockfile
+      - run: bun db:migrate
+      - name: Verify migration reruns are idempotent
+        run: bun db:migrate
+      # The one place test logins are provisioned (packages/db/src/slots.ts),
+      # after the baseline has created offense_demo_web.
+      - run: bun db:roles
+      - run: bun test:integration
+      # The browser E2E tier is owned by e2e.yml (a single E2E owner keeps
+      # per-PR cost at one Chromium run; bun evidence enforces the split).
+
+  # The one required check for the main ruleset (policy/github/repository.json)
+  # and the CI half of deploy-staging's condition: it passes only when every
+  # CI job above passed, the dependency audit included (ADR 0039).
+  gate:
+    name: CI gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    needs: [checks, audit, migrations, integration]
+    if: always()
+    steps:
+      - name: Require every CI job to pass
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            if [ "$result" != success ]; then
+              echo "CI gate: a required job ended $result"
+              exit 1
+            fi
+          done
+
+  notify-drive:
+    name: Report failure to drive Incidents
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    needs: [checks, audit, migrations, integration]
+    if: failure()
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: '1.4.2'
+      - name: Post the failure to the Incidents channel
+        env:
+          PAGESPACE_INCIDENTS_WEBHOOK_URL: ${{ secrets.PAGESPACE_INCIDENTS_WEBHOOK_URL }}
+          PAGESPACE_INCIDENTS_WEBHOOK_SECRET: ${{ secrets.PAGESPACE_INCIDENTS_WEBHOOK_SECRET }}
+          NOTIFY_REF: ${{ github.ref_name }}
+          NOTIFY_SHA: ${{ github.sha }}
+          NOTIFY_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: >-
+          bun scripts/notify-drive.ts incidents
+          --ref "$NOTIFY_REF"
+          --sha "$NOTIFY_SHA"
+          --run-url "$NOTIFY_RUN_URL"
+          --tasks "$NOTIFY_REF"

@@ -1,0 +1,38 @@
+# Fly.io release-only migrator app for staging (ISSUE-102, ADR 0041). Fly
+# secrets are app-wide: every machine of an app, and its release_command
+# machine, receives all of them as environment variables. The schema owner
+# credential therefore lives only here, in an app with no services and no
+# machines, whose deploy does nothing but run the release command. The web
+# app (fly.toml) never holds MIGRATION_DATABASE_URL, and production web and
+# realtime startup refuse to run with it in their environment.
+#
+# Deployed by .github/workflows/deploy-staging.yml before the web app, from
+# the repository root:
+#   flyctl deploy -c fly.migrate.toml --remote-only --update-only ...
+# `--update-only` creates no machines, so the release command's temporary
+# machine is the only one that ever boots with the owner credential, and it
+# is destroyed when the command exits. A non-zero exit stops the deploy, and
+# the workflow never reaches the web deploy.
+app = "offense-demo-staging-migrate"
+
+# Same region as the web app and Postgres.
+primary_region = "ord"
+
+[build]
+  # The web image: it carries packages/db/scripts/migrate.ts and the
+  # committed migrations (apps/web/Dockerfile). Built from the same commit
+  # as the web release in the same workflow run.
+  dockerfile = "apps/web/Dockerfile"
+
+[deploy]
+  # Connects as MIGRATION_DATABASE_URL (this app's only database secret),
+  # lock-bounded so hot-table DDL fails the release fast (ISSUE-112). Run
+  # by absolute path: the image has no .env for `bun db:migrate`, and its
+  # WORKDIR (apps/web) has no migrate script of its own.
+  release_command = "bun /app/packages/db/scripts/migrate.ts"
+
+  [deploy.release_command_vm]
+    # An app with no machines would otherwise default the release machine
+    # to shared-cpu-2x; the migrator needs no more than the web machine.
+    size = "shared-cpu-1x"
+    memory = "512mb"
