@@ -13,14 +13,16 @@ import {
   reachSentState,
   requestConfirmLink,
 } from './support/confirm-page';
+import { givenProjects } from './support/projects';
 import { gotoWithTheme } from './support/theme';
 
 /**
  * Automated accessibility coverage for every authentication and security
  * screen (AUTH-6.6), the passkey offer in both themes (ISSUE-77), plus the
  * signed-in product shell's home and settings routes in both themes
- * (ISSUE-10): zero serious/critical axe findings and usability at 200%
- * zoom; keyboard-only use, visible focus and live-region announcements are
+ * (ISSUE-10) and the signed-in home /app, empty and listing projects, in
+ * both themes (PROJ-2.5): zero serious/critical axe findings and usability
+ * at 200% zoom; keyboard-only use, visible focus and live-region announcements are
  * in accessibility-keyboard.e2e.ts. Chromium/Firefox/WebKit desktop and mobile projects all run
  * this file (only passkey-lifecycle.e2e.ts is Chromium-only), so narrow
  * (compact) layout usability is exercised by the mobile projects without a
@@ -191,6 +193,36 @@ test('settings has no serious or critical accessibility findings in dark or ligh
 
   await gotoWithTheme(page, '/settings', 'light');
   await assertNoSeriousFindings(page);
+});
+
+test('PROJ-2.5 /app with no projects has no serious or critical accessibility findings in dark or light', async ({
+  page,
+}) => {
+  await signUpMember(page.request);
+  for (const theme of ['dark', 'light'] as const) {
+    await gotoWithTheme(page, '/app', theme);
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    await expect(page.getByText('No projects yet.')).toBeVisible();
+    await assertNoSeriousFindings(page);
+  }
+});
+
+test('PROJ-2.5 /app listing projects has no serious or critical accessibility findings in dark or light', async ({
+  page,
+}) => {
+  await signUpMember(page.request);
+  await givenProjects(page.request, [
+    'Axe first project',
+    'Axe second project',
+  ]);
+  for (const theme of ['dark', 'light'] as const) {
+    await gotoWithTheme(page, '/app', theme);
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    await expect(
+      page.getByRole('list', { name: 'Projects' }).getByRole('listitem'),
+    ).toHaveCount(2);
+    await assertNoSeriousFindings(page);
+  }
 });
 
 test('the confirm sign-in page stays usable with no horizontal overflow at 320 px and 200% effective zoom', async ({
