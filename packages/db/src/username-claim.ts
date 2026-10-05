@@ -2,7 +2,7 @@ import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { BunSQLDatabase } from 'drizzle-orm/bun-sql/postgres';
 import { users } from './schema/users';
 import { instrumented, type DatabaseEventSink } from './instrumented';
-import { isUniqueViolation } from './unique-violation';
+import { isUniqueViolation } from './sql-state';
 
 export type UsernameClaim = {
   readonly kind:

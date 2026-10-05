@@ -14,6 +14,7 @@ import {
 import { authOperations } from './auth-operations';
 import { emailDeliveryOperations } from './email-delivery-operations';
 import { outboxOperations } from './outbox';
+import { projectOperations } from './project-operations';
 import { instrumented, type DatabaseEventSink } from './instrumented';
 import {
   runtimeRoleFactsFrom,
@@ -39,7 +40,7 @@ export { refuseSchemaAlteringRole } from './runtime-role';
 export const DEFAULT_MAX_CONNECTIONS = 10;
 
 /**
- * Composes the auth, email and outbox areas over one connection pool
+ * Composes the auth, email, outbox and projects areas over one connection pool
  * (ISSUE-8 AC1): every area receives only the opaque Drizzle handle and the
  * event sink, never the raw client, and returns records, not rows.
  * `transaction`, `createUser` and the raw `outbox` table have no production
@@ -126,6 +127,7 @@ export function createDatabase({
     ...authOperations({ database, eventSink }),
     ...emailDeliveryOperations({ database, eventSink }),
     ...outboxOperations({ database, eventSink }),
+    ...projectOperations({ database, eventSink }),
     /** Server-owned onboarding claim; see `claimUsername`. */
     claimUsername: (input: { userId: string; username: string }) =>
       claimUsername(database, input, eventSink),
