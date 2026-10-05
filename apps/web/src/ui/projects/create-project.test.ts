@@ -3,15 +3,16 @@ import { createCreateProject } from './create-project';
 
 setupRitewayBun();
 
-const answering = (response: Response | Error) => {
-  const requests: { url: string; init: RequestInit | undefined }[] = [];
-  const fetchImpl = async (url: string, init?: RequestInit) => {
-    requests.push({ url, init });
+/** A fetch that answers `response` once and keeps the request it was sent. */
+function answering(response: Response | Error) {
+  let sent: { url: string; init?: RequestInit } | undefined;
+  const create = createCreateProject(async (url, init) => {
+    sent = { url, init };
     if (response instanceof Error) throw response;
     return response;
-  };
-  return { requests, create: createCreateProject(fetchImpl) };
-};
+  });
+  return { create, sent: () => sent };
+}
 
 const created = Response.json(
   {
@@ -31,16 +32,16 @@ const refusal = (status: number, error: Record<string, string>) =>
 
 describe('createCreateProject', () => {
   test('posts exactly the name and reports the created project', async () => {
-    const { create, requests } = answering(created);
+    const { create, sent } = answering(created);
     assert({
       given: 'a 201 from POST /api/projects',
       should: 'post only { name } as JSON and report created',
       actual: [
         await create(' Launch '),
-        requests[0]?.url,
-        requests[0]?.init?.method,
-        new Headers(requests[0]?.init?.headers).get('content-type'),
-        requests[0]?.init?.body,
+        sent()?.url,
+        sent()?.init?.method,
+        new Headers(sent()?.init?.headers).get('content-type'),
+        sent()?.init?.body,
       ],
       expected: [
         { kind: 'created' },

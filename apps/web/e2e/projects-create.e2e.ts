@@ -29,10 +29,13 @@ const storedProjects = async (page: Page) => {
   return ((await response.json()) as { projects: { name: string }[] }).projects;
 };
 
-/** Form values must never reach the address bar, history or referrers. */
-const expectNotInUrl = (page: Page, value: string) => {
-  expect(page.url()).not.toContain(value);
-  expect(page.url()).not.toContain(encodeURIComponent(value));
+/**
+ * The page is plain `/app` with no query: form values never reach the
+ * address bar, history or referrers.
+ */
+const expectBareAppUrl = (page: Page) => {
+  const url = new URL(page.url());
+  expect([url.pathname, url.search, url.hash]).toEqual(['/app', '', '']);
 };
 
 test.describe('with JavaScript off', () => {
@@ -57,7 +60,7 @@ test.describe('with JavaScript off', () => {
     expect(answer.status()).toBe(303);
     expect(new URL(answer.url()).pathname).toBe('/app');
     await expect(page).toHaveURL(/\/app$/);
-    expectNotInUrl(page, name);
+    expectBareAppUrl(page);
     await expect(listedProjects(page)).toHaveCount(1);
     await expect(listedProjects(page).first()).toContainText(name);
     // The field starts empty again: the answer was a redirect, not a refusal.
@@ -83,7 +86,7 @@ test.describe('with JavaScript off', () => {
       await expect(field).toHaveValue(invalid);
       await expect(field).toHaveAttribute('aria-invalid', 'true');
       await expectFocusOn(page, 'input', 'project-name');
-      expectNotInUrl(page, invalid.trim() === '' ? 'name=' : invalid);
+      expectBareAppUrl(page);
       await expect(page.getByText('No projects yet.')).toBeVisible();
       expect(await storedProjects(page)).toEqual([]);
     }
