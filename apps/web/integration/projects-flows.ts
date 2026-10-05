@@ -75,17 +75,24 @@ export function createProjectFlows() {
     return account;
   };
 
+  /**
+   * One POST through the real route. `omit` drops headers the fixture sets
+   * by default (its `origin`), to send what a non-browser client sends.
+   */
   const create = (
     cookie: string | null,
     body: unknown,
     headers: Record<string, string> = {},
-  ) =>
-    routes.projects.POST(
-      jsonPost('/api/projects', body, {
-        ...(cookie ? { cookie } : {}),
-        ...headers,
-      }),
-    );
+    omit: readonly string[] = [],
+  ) => {
+    const request = jsonPost('/api/projects', body, {
+      ...(cookie ? { cookie } : {}),
+      ...headers,
+    });
+    const kept = new Headers(request.headers);
+    for (const name of omit) kept.delete(name);
+    return routes.projects.POST(new Request(request, { headers: kept }));
+  };
 
   const list = (cookie: string | null) =>
     routes.projects.GET(
