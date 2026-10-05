@@ -3,9 +3,11 @@ import type { Metadata } from 'next';
 import type { SearchParams } from '../../../features/access/decision';
 import { requireAccess } from '../../../lib/access';
 import { readRoute } from '../../../lib/request-route';
+import { NewProject } from '../../../ui/projects/new-project';
 import { ProjectList } from '../../../ui/projects/project-list';
 import { projectListFrom } from '../../../ui/projects/project-list-response';
 import { prose } from '../../ui/prose-class';
+import { createProjectAction } from './actions';
 
 export const metadata: Metadata = { title: 'App' };
 
@@ -16,6 +18,8 @@ export const metadata: Metadata = { title: 'App' };
  * The list is read on the server through `readRoute` over GET
  * /api/projects, so the route's session and `authorizeRequest` gates decide
  * what the member sees (ADR 0048); the page never queries the database.
+ * The create form posts to `createProjectAction`, which works without
+ * JavaScript and lands back here with the new project listed.
  */
 export default async function AppHomePage({
   searchParams,
@@ -34,6 +38,7 @@ export default async function AppHomePage({
           ? 'You’re signed in'
           : `You’re signed in as ${username}`}
       </h1>
+      <NewProject create={createProjectAction} />
       <ProjectList projects={projects} />
       <p className={prose.p}>
         <Link href="/settings">Settings</Link>
