@@ -8,6 +8,10 @@ import { createConfirmHandlers } from '../features/auth/confirm';
 import { createAuthRouteHandlers } from '../features/auth/handlers';
 import { createAlertsHandler } from '../features/ops/alerts';
 import { createMetricsHandler } from '../features/ops/metrics';
+import {
+  createCreateProjectHandler,
+  createListProjectsHandler,
+} from '../features/projects/projects';
 import { createTicketHandler } from '../features/realtime/ticket';
 import { identify } from '../lib/identity';
 import type { App } from './app';
@@ -65,6 +69,26 @@ export function createRoutes(app: App) {
         identify: (request) => identify(app.auth(), request.headers),
         limiter: () => app.auth().limiter,
         claim: (input) => database.claimUsername(input),
+      }),
+    },
+    projects: {
+      GET: createListProjectsHandler({
+        logger,
+        origin,
+        identify: (request) => identify(app.auth(), request.headers),
+        loadContext: (input) => database.loadAuthorizationContext(input),
+        listProjectsForOwner: (ownerUserId) =>
+          database.listProjectsForOwner(ownerUserId),
+      }),
+      POST: createCreateProjectHandler({
+        logger,
+        origin,
+        identify: (request) => identify(app.auth(), request.headers),
+        loadContext: (input) => database.loadAuthorizationContext(input),
+        limiter: () => app.auth().limiter,
+        clock: app.clock,
+        ids: app.ids,
+        insertProject: (record) => database.insertProject(record),
       }),
     },
     ticket: {
