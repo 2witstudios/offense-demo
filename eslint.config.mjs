@@ -233,10 +233,10 @@ const appImportRestrictions = [{ group: ['@offense-demo/*/src/*'] }];
  * ISSUE-7: the web process edge (`server/process-app.ts`) holds the
  * process's app, so importing it is reaching a process-wide locator. Route
  * modules and server action modules (`actions.ts`) may bind `processRoute`
- * only; the process entries (proxy,
- * instrumentation, production start, and the server-component session
- * read) may use `processApp`; everything else receives the app, or part of
- * it, as an argument.
+ * only; the process entries (proxy, instrumentation, production start, the
+ * server-component session read and the server-component route read) may
+ * use `processApp`; everything else receives the app, or part of it, as an
+ * argument.
  */
 const processEdgeMessage =
   'Receive the app as an argument; only route bindings and the process entries import the process edge.';
@@ -263,6 +263,7 @@ const processEntries = [
   'apps/web/src/instrumentation.ts',
   'apps/web/src/server/start.ts',
   'apps/web/src/lib/request-session.ts',
+  'apps/web/src/lib/request-route.ts',
 ];
 
 /**

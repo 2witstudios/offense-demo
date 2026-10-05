@@ -52,7 +52,10 @@ Direct single-agent work may proceed without `pu`.
 3. API route: thin handler in `src/app/api/…` — resolve principal, call the
    feature operation through `handleOperation` (correlation, structured
    logging, error mapping), validate untrusted input with
-   `parseValidated`/`readJson`, keep same-origin checks on mutations.
+   `parseValidated`/`readJson`, keep same-origin checks on mutations. An
+   operation that reaches protected data calls `authorizeRequest` first
+   (see "Adding a capability"); a page reads through its route with
+   `readRoute` (`docs/development/ui-conventions.md`).
 4. Route handlers must not contain domain rules; `@offense-demo/domain` owns invariants.
 5. Extend `apps/web/e2e` if the route adds user-visible contracts.
 
@@ -72,6 +75,40 @@ Direct single-agent work may proceed without `pu`.
    load authoritative record → domain operation → persist with optimistic
    version → map infrastructure failures to stable public errors.
 
+## Adding a capability
+
+Every access question is one `authorize` decision (ADR 0048). The template
+ships `project.create` and `project.list` on the example aggregate; follow
+them.
+
+1. Vocabulary: add the capability to `capabilities` and its row to
+   `capabilityMetadata` in `packages/protocol/src/authorization.ts`
+   (`resourceKinds` it may be asked of, and `read`). A new resource kind
+   joins `resourceKinds` there: a collection (`projects`, asked when
+   creating or listing) or a row kind (`project`, loaded by id).
+2. Rule: add its fixed allowance to `fixedAllowances` in
+   `packages/auth/src/authorize.ts` (the type requires one per capability),
+   and extend the exhaustive table in `authorize.test.ts`: every new
+   (principal, capability, resource kind, deny facts) cell gets its
+   expected decision, and the deny-dominance and resource-kind tests keep
+   passing. A creator or member fact also gets a fact-locality test.
+3. Facts: a row kind or a new fact adds its lookup to
+   `packages/db/src/authorization/load-context.ts`, selecting only the
+   columns its rule reads and the runtime roles may read, with the
+   projection field mapped in `toAuthorizationInput`, a unit test and an
+   integration test running as the runtime role.
+4. Gate: the route's handler calls
+   `authorizeRequest(identity, capability, resourceRef)` (built with
+   `createAuthorizeRequest({ loadContext: database.loadAuthorizationContext,
+logger })` inside `handleOperation`) before any other check or
+   protected read, and uses the resource it returns. Its tests cover the
+   public answers: `NOT_FOUND` for every denied read, `AUTHENTICATION` for
+   an anonymous non-read, `AUTHORIZATION` otherwise, 503 when the session
+   store is down.
+5. UI: a page that needs a hint passes a boolean (`{ canCreateProject }`)
+   computed on the server, never rows or deny facts.
+6. Update the capability table in ADR 0048 section 2.
+
 ## Replacing the placeholder domain
 
 The template ships a tiny placeholder in `packages/domain` so every gate has
@@ -87,6 +124,8 @@ something real to run against. When a project starts:
 3. Add the product's tables in a forward migration (`bun db:generate`)
    following [persistence](../architecture/persistence.md), and map the
    generic realtime `room` topics onto the product's shared live unit.
+   Replace the `project.*` capabilities and the `projects` resource kind
+   with the product's own (see "Adding a capability") in the same change.
 4. Record consequential choices as ADRs (`bun adr:next` for the number).
 
 ## Adding a product vertical

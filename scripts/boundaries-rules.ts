@@ -35,7 +35,8 @@ export const domainPurityIssue = (
 export const allowedWorkspaceDependencies: Record<string, readonly string[]> = {
   domain: ['errors'],
   protocol: [],
-  auth: ['errors'],
+  // ADR 0048: the evaluator decides over the protocol's vocabulary.
+  auth: ['errors', 'protocol'],
   errors: ['protocol'],
   db: ['config', 'errors', 'protocol'],
   redis: ['config', 'errors', 'protocol'],

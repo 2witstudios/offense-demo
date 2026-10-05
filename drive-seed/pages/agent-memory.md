@@ -16,7 +16,7 @@ place and say so rather than appending a contradiction.
 - Agents: Scrum Master {{page:scrumMaster}} · Builder {{page:builder}} · Reviewer {{page:reviewer}} · Documentation Agent {{page:documentationAgent}}
 
 Ids are also recorded in `project.config.json`; `bun drive:bootstrap --check`
-verifies them.
+verifies them, the Agent role, and that `PAGESPACE_TOKEN` can edit.
 
 ## Scrum Master
 

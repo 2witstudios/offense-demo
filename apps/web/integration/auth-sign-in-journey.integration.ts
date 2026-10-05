@@ -37,15 +37,11 @@ describe('AUTH-4.4 / 4.2 sign-in loop through the real handlers', () => {
         redirect: [response.status, response.headers.get('location')],
         sessionRows,
         provisional: provisional.state,
-        provisionalPermissions:
-          provisional.principal.kind === 'user'
-            ? provisional.principal.permissions
-            : 'n/a',
+        provisionalPrincipal: provisional.principal.kind,
         beforeAccess,
         claim: [claimed.status, await claimed.json()],
         member: member.state === 'member' ? member.username : member.state,
-        memberPermissions:
-          member.principal.kind === 'user' ? member.principal.permissions : [],
+        memberPrincipal: member.principal.kind,
         afterAccess: decideAccess({
           identity: member,
           path: '/app',
@@ -57,14 +53,14 @@ describe('AUTH-4.4 / 4.2 sign-in loop through the real handlers', () => {
         redirect: [303, '/onboarding/username?next=/app'],
         sessionRows: 1,
         provisional: 'provisional',
-        provisionalPermissions: [],
+        provisionalPrincipal: 'user',
         beforeAccess: {
           kind: 'redirect',
           to: '/onboarding/username?next=%2Fapp',
         },
         claim: [201, { username: name }],
         member: name,
-        memberPermissions: ['app:read', 'app:write'],
+        memberPrincipal: 'user',
         afterAccess: { kind: 'allow' },
         stored: name,
       },

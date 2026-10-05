@@ -86,7 +86,7 @@
       "name": "@offense-demo/auth",
       "version": "0.0.0",
       "dependencies": {
-        "@offense-demo/errors": "workspace:*",
+        "@offense-demo/protocol": "workspace:*",
       },
       "devDependencies": {
         "riteway": "9.3.0",

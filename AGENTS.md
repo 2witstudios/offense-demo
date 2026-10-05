@@ -80,7 +80,10 @@ guessing an id.
   the edges; rejected operations leave state unchanged.
 - Validate untrusted input, environment, and serialized messages at trust
   boundaries. Pass explicit principals into operations. Every access
-  decision goes through the one pure authorization core (ADR 0048).
+  decision goes through the one pure authorization core (ADR 0048):
+  `authorize` in `@offense-demo/auth`, reached by a route through
+  `authorizeRequest` and by a page through `readRoute`. Adding a
+  capability: [extending](docs/development/extending.md#adding-a-capability).
 - Greenfield over backward compatibility: until first ship there are no
   deployed consumers, so no compat surface may outlive the mistake that
   required it. When a foundational choice proves wrong before first ship,

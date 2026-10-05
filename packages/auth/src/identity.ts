@@ -1,4 +1,4 @@
-import type { Permission, Principal } from './index';
+import type { Principal } from './index';
 
 /** Facts about a durable session, verified by the injected reader. */
 export type VerifiedSession = {
@@ -20,8 +20,8 @@ const anonymous = { kind: 'anonymous' } as const;
 
 /**
  * Who is asking, and how far through onboarding: anonymous visitors, verified
- * accounts still choosing a username (`provisional`, no permission), and
- * accounts with a public identity (`member`).
+ * accounts still choosing a username (`provisional`), and accounts with a
+ * public identity (`member`). What each may do is `authorize`'s answer.
  */
 type AnonymousPrincipal = Extract<Principal, { kind: 'anonymous' }>;
 type UserPrincipal = Extract<Principal, { kind: 'user' }>;
@@ -37,18 +37,15 @@ export type Identity =
       readonly principal: UserPrincipal;
     };
 
-/** What every account with a public identity holds. */
-const memberPermissions: readonly Permission[] = ['app:read', 'app:write'];
-
 const ANONYMOUS: Identity = { state: 'anonymous', principal: anonymous };
 const UNAVAILABLE: Identity = { state: 'unavailable', principal: anonymous };
 
 /**
  * Principal resolution from request cookies (ADR 0020, gate 2). Only the
- * cookie header enters; permissions derive from verified facts alone, so
- * request-supplied roles, permissions or identity fields cannot matter. An
- * unreadable store resolves `unavailable`: no permissions (the gate fails
- * closed) and distinguishable from a signed-out visitor, so callers can
+ * cookie header enters; the identity derives from verified facts alone, so
+ * request-supplied roles or identity fields cannot matter. An unreadable
+ * store resolves `unavailable`: no principal (the gate fails closed) and
+ * distinguishable from a signed-out visitor, so callers can
  * answer 503 and report the outage instead of sending members to sign-in.
  */
 export async function resolveIdentity({
@@ -77,10 +74,10 @@ export async function resolveIdentity({
     ? {
         state: 'member',
         username,
-        principal: { kind: 'user', userId, permissions: memberPermissions },
+        principal: { kind: 'user', userId },
       }
     : {
         state: 'provisional',
-        principal: { kind: 'user', userId, permissions: [] },
+        principal: { kind: 'user', userId },
       };
 }

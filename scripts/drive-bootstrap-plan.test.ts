@@ -25,14 +25,16 @@ const options: BootstrapOptions = {
   skipKey: false,
   github: false,
   docsWorkflows: false,
-  keyRole: 'member',
 };
 const empty: ExistingState = {
   drive: null,
   nodes: {},
   env: new Set(),
   workflows: new Set(),
+  agentRole: null,
+  agentKeyValid: null,
 };
+const AGENT_ROLE_ID = 'role00000000000000000000';
 const id = (n: number) => `n${String(n).padStart(23, '0')}`;
 const ALL_ENV = new Set([
   'PAGESPACE_TOKEN',
@@ -63,6 +65,8 @@ const provisioned: ExistingState = {
   nodes: fullNodes(),
   env: ALL_ENV,
   workflows: new Set(),
+  agentRole: { id: AGENT_ROLE_ID, view: true, edit: true, share: false },
+  agentKeyValid: true,
 };
 const provisionedConfig = parseProjectConfig(
   JSON.parse(
@@ -156,6 +160,20 @@ describe('planBootstrap on an empty template', () => {
     });
   });
 
+  test('creates the Agent role before minting the key with it', () => {
+    assert({
+      given: 'a drive with no Agent role and no key',
+      should: 'create the role, then mint the key',
+      actual: actions
+        .filter((a) => a.kind === 'ensureAgentRole' || a.kind === 'mintKey')
+        .map(describeAction),
+      expected: [
+        'create drive role "Agent" (drive-wide view and edit, no share)',
+        'mint drive-scoped key (role Agent, browser consent) → .env PAGESPACE_TOKEN',
+      ],
+    });
+  });
+
   test('flags', () => {
     const skipped = planBootstrap(config, manifest, empty, {
       ...options,
@@ -234,6 +252,64 @@ describe('planBootstrap on a provisioned drive', () => {
       expected: manifest.nodes.filter(
         (node) => node.config && node.ref !== 'blog',
       ).length,
+    });
+  });
+});
+
+describe('planBootstrap on the Agent role and key', () => {
+  test('re-mints a key that cannot edit', () => {
+    assert({
+      given: 'a PAGESPACE_TOKEN in .env that cannot edit the Roadmap',
+      should: 'mint a replacement with the Agent role, and only that',
+      actual: planBootstrap(
+        provisionedConfig,
+        manifest,
+        { ...provisioned, agentKeyValid: false },
+        { ...options, github: true },
+      )
+        .filter((a) => a.kind !== 'keep' && a.kind !== 'renderAgentsMd')
+        .map(describeAction),
+      expected: [
+        'mint drive-scoped key (role Agent, browser consent) → .env PAGESPACE_TOKEN, replacing a token that cannot edit (+ GitHub secret)',
+      ],
+    });
+  });
+
+  test('resets a drifted role in place', () => {
+    const plan = planBootstrap(
+      provisionedConfig,
+      manifest,
+      {
+        ...provisioned,
+        agentRole: { id: AGENT_ROLE_ID, view: true, edit: false, share: true },
+      },
+      options,
+    );
+    assert({
+      given: 'an Agent role without edit and with share',
+      should: 'reset that role, not create another or re-mint',
+      actual: plan
+        .filter((a) => a.kind !== 'keep' && a.kind !== 'renderAgentsMd')
+        .map(describeAction),
+      expected: [
+        `reset drive role "Agent" ${AGENT_ROLE_ID} to drive-wide view and edit, no share`,
+      ],
+    });
+  });
+
+  test('--skip-key still ensures the role', () => {
+    assert({
+      given: '--skip-key on a drive without the Agent role',
+      should: 'create the role and mint nothing',
+      actual: kinds(
+        planBootstrap(
+          provisionedConfig,
+          manifest,
+          { ...provisioned, agentRole: null, agentKeyValid: false },
+          { ...options, skipKey: true },
+        ),
+      ).filter((k) => k === 'ensureAgentRole' || k === 'mintKey'),
+      expected: ['ensureAgentRole'],
     });
   });
 });

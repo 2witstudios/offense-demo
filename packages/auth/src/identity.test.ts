@@ -20,28 +20,24 @@ describe('resolveIdentity', () => {
   test('a verified, unexpired session with a username is a member', async () => {
     assert({
       given: 'a live session whose user completed onboarding',
-      should: 'grant app:read and app:write',
+      should: 'resolve to a member user principal',
       actual: await resolveWith(session()),
       expected: {
         state: 'member',
         username: 'ada',
-        principal: {
-          kind: 'user',
-          userId: 'user1',
-          permissions: ['app:read', 'app:write'],
-        },
+        principal: { kind: 'user', userId: 'user1' },
       },
     });
   });
 
-  test('a session without a username is provisional and holds no permission', async () => {
+  test('a session without a username is provisional', async () => {
     assert({
       given: 'a verified user who has not claimed a username',
-      should: 'resolve to a user principal with no permissions',
+      should: 'resolve to a provisional user principal',
       actual: await resolveWith(session({ username: null })),
       expected: {
         state: 'provisional',
-        principal: { kind: 'user', userId: 'user1', permissions: [] },
+        principal: { kind: 'user', userId: 'user1' },
       },
     });
   });
@@ -79,7 +75,7 @@ describe('resolveIdentity', () => {
     });
   });
 
-  test('a failing lookup resolves unavailable with no permissions, never a guess', async () => {
+  test('a failing lookup resolves unavailable, never a guess', async () => {
     const result = await resolveIdentity({
       cookie: 'c=1',
       readSession: async () => {
@@ -89,7 +85,7 @@ describe('resolveIdentity', () => {
     });
     assert({
       given: 'a session store that throws',
-      should: 'fail closed as unavailable, holding no principal permissions',
+      should: 'fail closed as unavailable, with no user principal',
       actual: result,
       expected: { state: 'unavailable', principal: { kind: 'anonymous' } },
     });
@@ -103,10 +99,10 @@ describe('resolveIdentity', () => {
       kind: 'service',
     } as VerifiedSession;
     assert({
-      given: 'a lookup result carrying extra role and permission fields',
+      given: 'a lookup result carrying extra role, permission and kind fields',
       should: 'derive the principal only from the verified facts',
       actual: (await resolveWith(forged)).principal,
-      expected: { kind: 'user', userId: 'user1', permissions: [] },
+      expected: { kind: 'user', userId: 'user1' },
     });
   });
 });

@@ -21,22 +21,27 @@ import {
   setConfigId,
   type RenderContext,
 } from './drive-bootstrap-render';
-import { webhookEnv, type Action } from './drive-bootstrap-plan';
+import {
+  AGENT_ROLE,
+  webhookEnv,
+  type Action,
+  type ExistingState,
+} from './drive-bootstrap-plan';
 import { parseProjectConfig } from './project-config';
 
 export type ExecContext = {
   readonly manifest: Manifest;
   readonly transport: Transport;
   readonly paths: Paths;
-  /** Ids of nodes that already exist, by ref. */
-  readonly existing: Readonly<Record<string, string>>;
-  readonly driveId: string | null;
+  /** What inspection found: existing node ids, the drive, the Agent role. */
+  readonly state: ExistingState;
 };
 
 type Run = {
   readonly ctx: ExecContext;
   readonly ids: Record<string, string>;
   driveId: string | null;
+  agentRoleId: string | null;
   configText: string;
 };
 
@@ -130,8 +135,42 @@ async function createWebhook(
   if (github) await githubSecrets(run, values);
 }
 
-async function mintKey(run: Run, role: string, github: boolean): Promise<void> {
+async function ensureAgentRole(run: Run, roleId: string | null): Promise<void> {
+  const driveId = requireDrive(run);
+  const driveWidePermissions = {
+    canView: AGENT_ROLE.view,
+    canEdit: AGENT_ROLE.edit,
+    canShare: AGENT_ROLE.share,
+  };
+  if (roleId === null) {
+    const created = await run.ctx.transport.api<{ role: { id: string } }>(
+      'POST',
+      `/api/drives/${driveId}/roles`,
+      {
+        name: AGENT_ROLE.name,
+        description: AGENT_ROLE.description,
+        permissions: {},
+        driveWidePermissions,
+      },
+    );
+    run.agentRoleId = created.role.id;
+  } else {
+    await run.ctx.transport.api(
+      'PATCH',
+      `/api/drives/${driveId}/roles/${roleId}`,
+      { driveWidePermissions },
+    );
+    run.agentRoleId = roleId;
+  }
+}
+
+async function mintKey(
+  run: Run,
+  action: Extract<Action, { kind: 'mintKey' }>,
+): Promise<void> {
   const config = parseProjectConfig(JSON.parse(run.configText));
+  if (!run.agentRoleId)
+    throw new Error(`The drive has no "${AGENT_ROLE.name}" role to mint with`);
   const command = [
     'pagespace',
     'keys',
@@ -139,9 +178,9 @@ async function mintKey(run: Run, role: string, github: boolean): Promise<void> {
     '--drive',
     requireDrive(run),
     '--role',
-    role,
+    run.agentRoleId,
     '--name',
-    `${config.name}-ci`,
+    `${config.name}-agent`,
     '--show-token',
     '--host',
     config.pagespace.apiUrl,
@@ -154,7 +193,11 @@ async function mintKey(run: Run, role: string, github: boolean): Promise<void> {
       `pagespace keys create failed (exit ${result.code}); no token was printed`,
     );
   writeEnv(run, { PAGESPACE_TOKEN: token });
-  if (github) await githubSecrets(run, { PAGESPACE_TOKEN: token });
+  if (action.github) await githubSecrets(run, { PAGESPACE_TOKEN: token });
+  if (action.replaces)
+    run.ctx.transport.log(
+      '  the replaced key still exists: revoke it (`pagespace keys list`, then `pagespace keys revoke`)',
+    );
 }
 
 async function createWorkflow(
@@ -272,8 +315,10 @@ async function settle(run: Run, action: Action): Promise<void> {
     });
   } else if (action.kind === 'createWebhook') {
     await createWebhook(run, action.ref, action.envStem, action.github);
+  } else if (action.kind === 'ensureAgentRole') {
+    await ensureAgentRole(run, action.roleId);
   } else if (action.kind === 'mintKey') {
-    await mintKey(run, action.role, action.github);
+    await mintKey(run, action);
   } else if (action.kind === 'createWorkflow') {
     await createWorkflow(run, action);
   } else if (action.kind === 'renderAgentsMd') {
@@ -305,8 +350,11 @@ export async function executePlan(
   if (configText === null) throw new Error('project.config.json is missing');
   const run: Run = {
     ctx,
-    ids: { ...ctx.existing },
-    driveId: ctx.driveId,
+    ids: Object.fromEntries(
+      Object.entries(ctx.state.nodes).map(([ref, node]) => [ref, node.id]),
+    ),
+    driveId: ctx.state.drive?.id ?? null,
+    agentRoleId: ctx.state.agentRole?.id ?? null,
     configText,
   };
   // Kept nodes are bookkeeping, not work: number only the real actions.

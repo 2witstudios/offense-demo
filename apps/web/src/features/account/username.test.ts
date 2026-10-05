@@ -7,7 +7,7 @@ setupRitewayBun();
 
 const member: Identity = {
   state: 'provisional',
-  principal: { kind: 'user', userId: 'user1', permissions: [] },
+  principal: { kind: 'user', userId: 'user1' },
 };
 
 const handlerWith = ({

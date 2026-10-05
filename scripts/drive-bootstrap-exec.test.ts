@@ -1,11 +1,7 @@
 import { assert, describe, setupRitewayBun, test } from 'riteway/bun';
+import { inspectBootstrap } from './drive-bootstrap-access';
 import { executePlan } from './drive-bootstrap-exec';
-import {
-  checkReport,
-  inspectDrive,
-  readOnly,
-  validateSeed,
-} from './drive-bootstrap-inspect';
+import { checkReport, readOnly, validateSeed } from './drive-bootstrap-inspect';
 import { parseManifest } from './drive-bootstrap-manifest';
 import { planBootstrap, type BootstrapOptions } from './drive-bootstrap-plan';
 import { parseProjectConfig } from './project-config';
@@ -24,33 +20,37 @@ const options: BootstrapOptions = {
   skipKey: false,
   github: true,
   docsWorkflows: true,
-  keyRole: 'member',
 };
 const AGENTS =
   '# Agents\n\n<!-- drive:start -->\nplaceholder\n<!-- drive:end -->\n';
 
+type Fake = ReturnType<typeof fakeDrive>;
+
+const configOf = (fake: Fake) =>
+  parseProjectConfig(JSON.parse(fake.files.get(paths.config) ?? ''));
+
+/** Inspects the fake drive as `main` does, the agent key read from .env. */
+const inspect = (fake: Fake, withWorkflows = true) => {
+  const envText = fake.files.get(paths.env) ?? '';
+  return inspectBootstrap(configOf(fake), manifest, readOnly(fake.transport), {
+    envText,
+    withWorkflows,
+    agentKey: envText.includes('PAGESPACE_TOKEN=')
+      ? readOnly(fake.transport)
+      : null,
+  });
+};
+
 /** One full bootstrap pass against the fake drive, as `main` runs it. */
-async function bootstrap(fake: ReturnType<typeof fakeDrive>) {
-  const config = parseProjectConfig(
-    JSON.parse(fake.files.get(paths.config) ?? ''),
-  );
-  const { state, problems } = await inspectDrive(
-    config,
-    manifest,
-    fake.transport,
-    fake.files.get(paths.env) ?? '',
-    true,
-  );
+async function bootstrap(fake: Fake) {
+  const config = configOf(fake);
+  const { state, problems } = await inspect(fake);
   const actions = planBootstrap(config, manifest, state, options);
-  const existing = Object.fromEntries(
-    Object.entries(state.nodes).map(([ref, node]) => [ref, node.id]),
-  );
   await executePlan(actions, {
     manifest,
     transport: fake.transport,
     paths,
-    existing,
-    driveId: state.drive?.id ?? null,
+    state,
   });
   return { actions, problems };
 }
@@ -200,6 +200,124 @@ describe('executePlan from the empty template', async () => {
   });
 });
 
+describe('the Agent role and key', () => {
+  test('a fresh drive gets an editing role and a key minted with it', async () => {
+    const fake = seeded();
+    await bootstrap(fake);
+    const config = configOf(fake);
+    const mint = fake.commands.find((c) => c.command[1] === 'keys')?.command;
+    const roleAt = mint?.indexOf('--role') ?? -1;
+    const nameAt = mint?.indexOf('--name') ?? -1;
+    assert({
+      given: 'a run against the empty template',
+      should:
+        'create one Agent role with drive-wide view and edit and no share',
+      actual: fake.roles.map((role) => ({
+        driveId: role.driveId,
+        name: role.name,
+        grant: role.driveWidePermissions,
+      })),
+      expected: [
+        {
+          driveId: config.pagespace.driveId ?? '',
+          name: 'Agent',
+          grant: { canView: true, canEdit: true, canShare: false },
+        },
+      ],
+    });
+    assert({
+      given: 'the minted key',
+      should: 'carry the Agent role id and the <name>-agent key name',
+      actual: [mint?.[roleAt + 1], mint?.[nameAt + 1]],
+      expected: [fake.roles[0]?.id, `${config.name}-agent`],
+    });
+  });
+
+  test('a key minted with MEMBER is caught and replaced', async () => {
+    const fake = seeded();
+    await bootstrap(fake);
+    // The live bug: a MEMBER key is view-only on the Roadmap.
+    fake.key.role = 'member';
+    const { problems } = await inspect(fake);
+    assert({
+      given: 'a PAGESPACE_TOKEN minted with the MEMBER role',
+      should: 'fail the check with the fix',
+      actual: checkReport(problems),
+      expected: [
+        'drive check FAILED:',
+        '  - PAGESPACE_TOKEN: cannot edit the Roadmap: rerun `bun drive:bootstrap` to mint a key with the Agent role, then revoke the old one (`pagespace keys list`, `pagespace keys revoke`)',
+      ].join('\n'),
+    });
+    const mintsBefore = fake.commands.length;
+    const { actions } = await bootstrap(fake);
+    const after = await inspect(fake);
+    assert({
+      given: 'a rerun of the bootstrap',
+      should:
+        'mint one replacement key with the Agent role and leave a clean check',
+      actual: [
+        actions.flatMap((a) => (a.kind === 'mintKey' ? [a.replaces] : [])),
+        fake.commands.slice(mintsBefore).filter((c) => c.command[1] === 'keys')
+          .length,
+        fake.key.role === fake.roles[0]?.id,
+        after.problems,
+      ],
+      expected: [[true], 1, true, []],
+    });
+  });
+
+  test('a drifted role is reported and reset without a new key', async () => {
+    const fake = seeded();
+    await bootstrap(fake);
+    const role = fake.roles[0];
+    if (role)
+      role.driveWidePermissions = {
+        canView: true,
+        canEdit: true,
+        canShare: true,
+      };
+    const { problems } = await inspect(fake);
+    assert({
+      given: 'an Agent role someone granted share',
+      should: 'report it against the role',
+      actual: problems.map((problem) => problem.message),
+      expected: [
+        `drive role "Agent" ${role?.id} grants view=true edit=true share=true; expected view=true edit=true share=false`,
+      ],
+    });
+    const mintsBefore = fake.commands.length;
+    await bootstrap(fake);
+    assert({
+      given: 'a rerun of the bootstrap',
+      should: 'reset the grant in place, keep the key and pass the check',
+      actual: [
+        fake.roles.length,
+        role?.driveWidePermissions,
+        fake.commands.length - mintsBefore,
+        (await inspect(fake)).problems,
+      ],
+      expected: [1, { canView: true, canEdit: true, canShare: false }, 0, []],
+    });
+  });
+
+  test('a missing token fails the check', async () => {
+    const fake = seeded();
+    await bootstrap(fake);
+    fake.files.set(paths.env, 'DATABASE_URL=postgres://local\n');
+    assert({
+      given: '.env without PAGESPACE_TOKEN',
+      should: 'name the missing key and how to mint it',
+      actual: (await inspect(fake)).problems,
+      expected: [
+        {
+          ref: 'PAGESPACE_TOKEN',
+          message: 'is not set in .env: rerun `bun drive:bootstrap` to mint it',
+        },
+      ],
+    });
+  });
+});
+
 describe('resuming after a crash', () => {
   test('keeps saved ids and finishes without duplicates', async () => {
     const fake = seeded(12);
@@ -255,13 +373,7 @@ describe('inspectDrive', () => {
     if (blog) blog.isTrashed = true;
     const roadmap = fake.pages.get(config.pagespace.pages.roadmap ?? '');
     if (roadmap) roadmap.type = 'DOCUMENT';
-    const { problems } = await inspectDrive(
-      config,
-      manifest,
-      readOnly(fake.transport),
-      '',
-      false,
-    );
+    const { problems } = await inspect(fake, false);
     assert({
       given: 'a trashed canvas and a page of the wrong type',
       should: 'report both against their refs',

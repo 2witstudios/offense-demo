@@ -51,6 +51,15 @@ export function fakeDrive(options: { failOnCall?: number } = {}) {
   const statuses = new Map<string, string[]>();
   const files = new Map<string, string>();
   const workflows: Record<string, unknown>[] = [];
+  type Grant = { canView: boolean; canEdit: boolean; canShare: boolean };
+  const roles: {
+    id: string;
+    driveId: string;
+    name: string;
+    driveWidePermissions: Grant | null;
+  }[] = [];
+  /** The role the minted PAGESPACE_TOKEN holds: a custom role id or 'member'. */
+  const key: { role: string | null } = { role: null };
   const calls: Call[] = [];
   const logs: string[] = [];
   const commands: { command: readonly string[]; stdin?: string }[] = [];
@@ -73,6 +82,15 @@ export function fakeDrive(options: { failOnCall?: number } = {}) {
     pages.set(created.id, created);
     return created;
   };
+
+  // A custom role grants its drive-wide permissions; MEMBER is view-only on
+  // pages it did not create, as PageSpace resolves it.
+  const keyGrant = (): Grant =>
+    roles.find((role) => role.id === key.role)?.driveWidePermissions ?? {
+      canView: true,
+      canEdit: false,
+      canShare: false,
+    };
 
   const routes: [
     string,
@@ -205,6 +223,49 @@ export function fakeDrive(options: { failOnCall?: number } = {}) {
     ],
     [
       'GET',
+      /^\/api\/drives\/(\w+)\/roles$/,
+      (match) => ({ roles: roles.filter((role) => role.driveId === match[1]) }),
+    ],
+    [
+      'POST',
+      /^\/api\/drives\/(\w+)\/roles$/,
+      (match, body) => {
+        if (roles.some((r) => r.driveId === match[1] && r.name === body.name))
+          throw new HttpError(409, 'A role with this name already exists');
+        const role = {
+          id: nextId('r'),
+          driveId: match[1],
+          name: String(body.name),
+          driveWidePermissions: (body.driveWidePermissions as Grant) ?? null,
+        };
+        roles.push(role);
+        return { role };
+      },
+    ],
+    [
+      'PATCH',
+      /^\/api\/drives\/(\w+)\/roles\/(\w+)$/,
+      (match, body) => {
+        const role = roles.find((r) => r.id === match[2]);
+        if (!role) throw new HttpError(404, 'no role');
+        return { role: Object.assign(role, body) };
+      },
+    ],
+    [
+      'GET',
+      /^\/api\/auth\/key\?pageId=(\w+)$/,
+      (match) => {
+        if (key.role === null) throw new HttpError(401, 'no key');
+        const driveId = page(match[1]).driveId;
+        const custom = key.role === 'member' ? null : key.role;
+        return {
+          driveScopes: [{ id: driveId, customRoleId: custom }],
+          page: { id: match[1], permissions: keyGrant() },
+        };
+      },
+    ],
+    [
+      'GET',
       /^\/api\/workflows\?driveId=(\w+)$/,
       (match) => workflows.filter((w) => w.driveId === match[1]),
     ],
@@ -241,9 +302,9 @@ export function fakeDrive(options: { failOnCall?: number } = {}) {
     },
     run: async (command, opts) => {
       commands.push({ command, stdin: opts?.stdin });
-      return command[1] === 'keys'
-        ? { code: 0, stdout: 'PAGESPACE_TOKEN=mcp_fakeTokenDoNotPrint\n' }
-        : { code: 0, stdout: '' };
+      if (command[1] !== 'keys') return { code: 0, stdout: '' };
+      key.role = command[command.indexOf('--role') + 1] ?? null;
+      return { code: 0, stdout: 'PAGESPACE_TOKEN=mcp_fakeTokenDoNotPrint\n' };
     },
     readText: (path) =>
       files.get(path) ??
@@ -253,7 +314,18 @@ export function fakeDrive(options: { failOnCall?: number } = {}) {
     writeText: (path, text) => void files.set(path, text),
     log: (line) => void logs.push(line),
   };
-  return { transport, drives, pages, statuses, files, calls, logs, commands };
+  return {
+    transport,
+    drives,
+    pages,
+    statuses,
+    files,
+    calls,
+    logs,
+    commands,
+    roles,
+    key,
+  };
 }
 
 /** The committed config with every PageSpace id reset to null (the template state). */

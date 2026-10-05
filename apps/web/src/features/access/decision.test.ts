@@ -19,16 +19,12 @@ const anonymous: Identity = {
 };
 const provisional: Identity = {
   state: 'provisional',
-  principal: { kind: 'user', userId: 'u', permissions: [] },
+  principal: { kind: 'user', userId: 'u' },
 };
 const member: Identity = {
   state: 'member',
   username: 'ada',
-  principal: {
-    kind: 'user',
-    userId: 'u',
-    permissions: ['app:read', 'app:write'],
-  },
+  principal: { kind: 'user', userId: 'u' },
 };
 
 describe('decideAccess', () => {

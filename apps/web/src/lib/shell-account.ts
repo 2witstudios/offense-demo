@@ -2,7 +2,7 @@ import type { Identity } from '@offense-demo/auth';
 import type { ShellAccount } from '../ui/layout/app-shell/components/topbar/topbar';
 
 /**
- * The only fields the client shell learns: never ids, roles or permissions.
+ * The only fields the client shell learns: never ids, roles or access facts.
  * During a session-store outage the shell offers sign-in, which is where a
  * visitor can recover once the store is back.
  */

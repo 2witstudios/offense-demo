@@ -68,7 +68,7 @@ export function createTicketHandler(dependencies: TicketDependencies) {
         requireSameOrigin(request, dependencies.origin());
         const identity = requireSignedIn(await dependencies.identify(request));
         // Signed in, but has not finished onboarding (no username yet):
-        // authenticated, not authorized, same as every other permission gate.
+        // authenticated, not authorized, as authorizeRequest answers it.
         if (identity.state === 'provisional')
           throw createAppError('AUTHORIZATION');
         const { userId } = identity.principal;

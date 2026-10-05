@@ -126,6 +126,7 @@ describe('structured logging: field allowlist (ADR 0019)', () => {
       deliverySeqLagEstimate: 42,
       pending: 68,
       scope: 'ipv6_48',
+      denyReason: 'account-erased',
     };
     const { entry } = emit(
       fields,

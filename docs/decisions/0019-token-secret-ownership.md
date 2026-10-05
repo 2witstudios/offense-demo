@@ -71,6 +71,7 @@ characters. Any other message is replaced with `[REDACTED]`.
 | `deliverySeqLagEstimate` | count |
 | `pending`                | count |
 | `scope`                  | code  |
+| `denyReason`             | code  |
 
 Kinds: **code**, a letter followed by up to 79 letters, digits, `_`, `.` or
 `-`; **id**, 1–128 letters, digits, `_` or `-`; **path**, `/` followed by
@@ -92,7 +93,7 @@ configuration, and a new field joins this table only with an ADR amendment.
 of kind **code**. Its values are exactly the deny reasons `denied`,
 `account-erased`, `unauthenticated` and `missing-capability`, each with
 privacy category `none`. It explains why an authorization
-decision denied and is logged with the operation, never with the resource's
-contents. It is not in the table above yet: `loggableFields` and the table
-are one change under the drift guard, so the change that adds the
-authorization vocabulary adds the field to both together.
+decision denied and is logged with the operation (event `authz.denied`),
+never with the resource's contents. The change that added the
+authorization vocabulary added it to `loggableFields` and the table above
+together, under the drift guard.

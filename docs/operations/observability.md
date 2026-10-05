@@ -84,6 +84,7 @@ diverge:
 | `auth.email_change.requested`            | info     | A fresh session started a recovery-email change                                                                        |
 | `auth.email_change.verified`             | info     | Ownership of the new address was verified and the change completed                                                     |
 | `auth.email_change.cleanup_failed`       | error    | A scheduled email-change-token cleanup batch failed                                                                    |
+| `authz.denied`                           | info     | An authorization decision denied a request; `denyReason` says why, never the resource's contents                       |
 | `realtime.outbox.append_failed`          | error    | Appending to the transactional outbox failed                                                                           |
 | `realtime.outbox.drain_failed`           | error    | A drain pass's range read or sink call failed; the loop stays alive and the next wakeup retries                        |
 | `realtime.outbox.delivery_lag_estimated` | info     | A readiness probe estimated the drain's seq-distance from the outbox high-water mark                                   |

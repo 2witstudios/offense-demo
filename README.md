@@ -111,6 +111,17 @@ sprint-room and incidents channels. It writes every id into
 `project.config.json` and rewrites the drive block in `AGENTS.md`. Until it
 runs, PageSpace-backed commands refuse with a "not provisioned" error.
 
+It also creates a custom drive role, **Agent** (drive-wide view and edit,
+no share), and mints the drive-scoped `PAGESPACE_TOKEN` key
+(`<name>-agent`) with that role after you approve it in the browser. The
+key goes to `.env` (and, with `--github`, the repository secret) and is
+what CI and the local `bun board:*` and `bun decision:record` commands
+write with. The built-in MEMBER role is view-only on pages it did not
+create, so a MEMBER key fails every board write. `bun drive:bootstrap
+--check` verifies the role and asks PageSpace whether the key can edit the
+Roadmap; when it cannot, rerunning `bun drive:bootstrap` mints a
+replacement (revoke the old key with `pagespace keys revoke`).
+
 Unless `--no-github` is given, the CLI creates the repository, pushes
 `main`, and applies the branch ruleset and required checks named in
 `project.config.json` (`gates.requiredChecks`).
@@ -141,9 +152,10 @@ do them for you:
    and [production](docs/operations/production.md). Then turn the deploy and
    alert-probe workflows on with `gh variable set STAGING_ENABLED --body true`;
    until then they skip without using Actions minutes.
-5. **PageSpace credentials.** Provide a drive-scoped `PAGESPACE_TOKEN`
-   (locally and as a repository secret) for the docs pipeline and board
-   scripts, and the channel webhook secrets the workflows post through
+5. **PageSpace credentials.** Unless bootstrap ran with `--github`, copy
+   the Agent-role `PAGESPACE_TOKEN` it wrote to `.env` into the repository
+   secret of the same name for the docs pipeline and board workflows, and
+   likewise the channel webhook secrets the workflows post through
    (`PAGESPACE_SPRINT_ROOM_WEBHOOK_URL`/`_SECRET`,
    `PAGESPACE_INCIDENTS_WEBHOOK_URL`/`_SECRET`).
 

@@ -11,7 +11,7 @@
     "test": "bun test src"
   },
   "dependencies": {
-    "@offense-demo/errors": "workspace:*"
+    "@offense-demo/protocol": "workspace:*"
   },
   "devDependencies": {
     "riteway": "9.3.0"

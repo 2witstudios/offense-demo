@@ -32,6 +32,33 @@ export type DriveState = {
   readonly homePageId: string | null;
 };
 
+/** The drive's custom "Agent" role, as found: its id and drive-wide grant. */
+export type RoleState = {
+  readonly id: string;
+  readonly view: boolean;
+  readonly edit: boolean;
+  readonly share: boolean;
+};
+
+/**
+ * The drive role the agent key is minted with. The built-in MEMBER role is
+ * view-only on pages it did not create, so a MEMBER key fails every board
+ * write; this custom role grants view and edit drive-wide, never share.
+ */
+export const AGENT_ROLE = {
+  name: 'Agent',
+  description:
+    'Agents and CI: read and edit pages and tasks; no sharing or deletion',
+  view: true,
+  edit: true,
+  share: false,
+} as const;
+
+export const grantsAgentAccess = (role: RoleState): boolean =>
+  role.view === AGENT_ROLE.view &&
+  role.edit === AGENT_ROLE.edit &&
+  role.share === AGENT_ROLE.share;
+
 export type ExistingState = {
   readonly drive: DriveState | null;
   readonly nodes: Readonly<Record<string, NodeState>>;
@@ -39,6 +66,13 @@ export type ExistingState = {
   readonly env: ReadonlySet<string>;
   /** Names of scheduled workflows already in the drive. */
   readonly workflows: ReadonlySet<string>;
+  /** The drive's "Agent" role, or null when it does not exist (or is unknown). */
+  readonly agentRole: RoleState | null;
+  /**
+   * Whether `.env`'s PAGESPACE_TOKEN holds the Agent role and can edit the
+   * Roadmap: false re-mints it, null means unverified (no token, or offline).
+   */
+  readonly agentKeyValid: boolean | null;
 };
 
 export type BootstrapOptions = {
@@ -46,7 +80,6 @@ export type BootstrapOptions = {
   readonly skipKey: boolean;
   readonly github: boolean;
   readonly docsWorkflows: boolean;
-  readonly keyRole: string;
 };
 
 export type Action =
@@ -103,9 +136,12 @@ export type Action =
       readonly envStem: string;
       readonly github: boolean;
     }
+  /** roleId null creates the role; an id resets its drive-wide grant. */
+  | { readonly kind: 'ensureAgentRole'; readonly roleId: string | null }
   | {
       readonly kind: 'mintKey';
-      readonly role: string;
+      /** The PAGESPACE_TOKEN in .env exists but cannot edit: mint over it. */
+      readonly replaces: boolean;
       readonly github: boolean;
     }
   | { readonly kind: 'createWorkflow'; readonly workflow: DocsWorkflow }
@@ -192,6 +228,26 @@ function driveSettings(manifest: Manifest, state: ExistingState): Action[] {
   return actions;
 }
 
+/** The Agent role (created or reset), then a key minted with it when needed. */
+function agentAccess(
+  state: ExistingState,
+  options: BootstrapOptions,
+): Action[] {
+  const actions: Action[] = [];
+  const role = state.drive ? state.agentRole : null;
+  if (role === null) actions.push({ kind: 'ensureAgentRole', roleId: null });
+  else if (!grantsAgentAccess(role))
+    actions.push({ kind: 'ensureAgentRole', roleId: role.id });
+  const hasToken = !!state.drive && state.env.has('PAGESPACE_TOKEN');
+  if (!options.skipKey && (!hasToken || state.agentKeyValid === false))
+    actions.push({
+      kind: 'mintKey',
+      replaces: hasToken,
+      github: options.github,
+    });
+  return actions;
+}
+
 function credentials(
   manifest: Manifest,
   state: ExistingState,
@@ -214,12 +270,7 @@ function credentials(
           github: options.github,
         });
     }
-  if (!options.skipKey && (!state.drive || !state.env.has('PAGESPACE_TOKEN')))
-    actions.push({
-      kind: 'mintKey',
-      role: options.keyRole,
-      github: options.github,
-    });
+  actions.push(...agentAccess(state, options));
   if (options.docsWorkflows)
     for (const workflow of manifest.docsWorkflows)
       if (!state.drive || !state.workflows.has(workflow.name))
@@ -285,8 +336,12 @@ const DESCRIBE: Describers = {
     const env = webhookEnv(a.envStem);
     return `create incoming webhook on ${a.ref} → .env ${env.url}, ${env.secret}${a.github ? ' (+ GitHub secrets)' : ''}`;
   },
+  ensureAgentRole: (a) =>
+    a.roleId === null
+      ? `create drive role "${AGENT_ROLE.name}" (drive-wide view and edit, no share)`
+      : `reset drive role "${AGENT_ROLE.name}" ${a.roleId} to drive-wide view and edit, no share`,
   mintKey: (a) =>
-    `mint drive-scoped key (role ${a.role}, browser consent) → .env PAGESPACE_TOKEN${a.github ? ' (+ GitHub secret)' : ''}`,
+    `mint drive-scoped key (role ${AGENT_ROLE.name}, browser consent) → .env PAGESPACE_TOKEN${a.replaces ? ', replacing a token that cannot edit' : ''}${a.github ? ' (+ GitHub secret)' : ''}`,
   createWorkflow: ({ workflow }) =>
     `create scheduled workflow "${workflow.name}" (${workflow.pipeline}, cron ${workflow.cron})`,
   renderAgentsMd: () =>

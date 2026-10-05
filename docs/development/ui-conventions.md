@@ -73,3 +73,29 @@ JavaScript only enhances it.
 
 Forms that predate this rule are tracked as issues in the PageSpace `Issues`
 list. Bring each one into line when you next change it.
+
+## Reading data in a page
+
+A server component reads data through the same API route the browser
+would call, never by querying `@offense-demo/db` or deciding access itself.
+
+- Call `readRoute` from `apps/web/src/lib/request-route.ts` with the bound
+  route's GET handler and its path, for example
+  `await readRoute((routes) => routes.sessions.GET, '/api/account/sessions')`.
+  It runs that handler in process (`inProcessFetch`) with this request's
+  own headers from `await headers()`, so the route's gates (session,
+  rate limit, and `authorizeRequest` for a protected read, ADR 0048) run
+  exactly as for the browser, and a denied read answers the same
+  `NOT_FOUND` as a missing resource.
+- The headers that describe the browser's navigation (`Origin`, `Referer`,
+  `Sec-Fetch-*`) are dropped: the page may have been reached from another
+  site's link, and the read is this server's own, answered only into that
+  session's HTML.
+- The page still calls `requireAccess` first, which redirects a visitor to
+  sign-in and a provisional account to onboarding before any read.
+- Pass the page's client components only what they render; for an access
+  hint, run the decision on the server and pass a boolean
+  (`{ canCreateProject }`), never loaded rows or deny facts.
+- Writes stay server actions (see above). `readRoute` is GET only, and it is
+  a process entry in `eslint.config.mjs`, the one page-side module besides
+  the session read that may reach the process's route table.

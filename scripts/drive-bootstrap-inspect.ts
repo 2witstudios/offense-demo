@@ -133,7 +133,7 @@ function verify(
   return null;
 }
 
-type Inspection = {
+export type Inspection = {
   readonly state: ExistingState;
   readonly problems: readonly Problem[];
 };
@@ -213,21 +213,33 @@ const envKeys = (envText: string): Set<string> =>
     ),
   );
 
+export type InspectOptions = {
+  readonly envText: string;
+  readonly withWorkflows: boolean;
+};
+
 /**
  * Reads the live drive: the configured drive, each node by its configured
  * id (verified for drive, type and trash), else by title under its parent,
  * so a page created by a crashed run is adopted rather than duplicated.
+ * The Agent role and key are left unverified: `inspectBootstrap` adds them.
  */
 export async function inspectDrive(
   config: ProjectConfig,
   manifest: Manifest,
   transport: Transport,
-  envText: string,
-  withWorkflows: boolean,
+  options: InspectOptions,
 ): Promise<Inspection> {
-  const env = envKeys(envText);
+  const env = envKeys(options.envText);
   const none = (message: string): Inspection => ({
-    state: { drive: null, nodes: {}, env, workflows: new Set() },
+    state: {
+      drive: null,
+      nodes: {},
+      env,
+      workflows: new Set(),
+      agentRole: null,
+      agentKeyValid: null,
+    },
     problems: [{ ref: 'drive', message }],
   });
   const driveId = config.pagespace.driveId;
@@ -254,12 +266,19 @@ export async function inspectDrive(
     if (page && verify(node, page, driveId) === null)
       nodes[node.ref] = await nodeState(transport, node, page);
   }
-  const workflows = withWorkflows
+  const workflows = options.withWorkflows
     ? await workflowNames(transport, driveId)
     : new Set<string>();
   const { id, drivePrompt, homePageId } = drive;
   return {
-    state: { drive: { id, drivePrompt, homePageId }, nodes, env, workflows },
+    state: {
+      drive: { id, drivePrompt, homePageId },
+      nodes,
+      env,
+      workflows,
+      agentRole: null,
+      agentKeyValid: null,
+    },
     problems,
   };
 }
@@ -306,10 +325,10 @@ export function templateVars(
   };
 }
 
-/** Configured ids that are null, missing, mistyped or trashed. */
+/** Configured ids that are null, missing, mistyped or trashed; role and key drift. */
 export function checkReport(problems: readonly Problem[]): string {
   return problems.length === 0
-    ? 'drive check: every configured id exists in the drive with the expected type.'
+    ? 'drive check: every configured id exists in the drive with the expected type, and PAGESPACE_TOKEN holds the Agent role and can edit.'
     : [
         'drive check FAILED:',
         ...problems.map((problem) => `  - ${problem.ref}: ${problem.message}`),

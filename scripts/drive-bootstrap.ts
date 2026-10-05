@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * `bun drive:bootstrap [--dry-run] [--check] [--skip-webhooks] [--skip-key]
- * [--github] [--docs-workflows] [--key-role <role>]`
+ * [--github] [--docs-workflows]`
  *
  * Provisions this repository's PageSpace drive from `drive-seed/manifest.json`
  * and records every id in `project.config.json`. Idempotent: it creates only
@@ -12,18 +12,27 @@
  * webhooks refuse drive-scoped keys), minted by a human with
  * `pagespace keys create --all-drives --name <name>-bootstrap --show-token`.
  * The script never reads the CLI's credential store and never prints a secret.
+ *
+ * The agent key (`.env` and the GitHub PAGESPACE_TOKEN secret, used by CI and
+ * the local `board:*` and `decision:record` commands) is minted through
+ * `pagespace keys create` with the drive's custom "Agent" role, which the
+ * script creates with drive-wide view and edit and no share: the built-in
+ * MEMBER role is view-only on pages it did not create. `--check` asks
+ * PageSpace whether that key can edit the Roadmap; a key that cannot is
+ * re-minted on the next run.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { parseDotenv } from './dotenv';
 import {
   HttpError,
   checkReport,
-  inspectDrive,
   readOnly,
   validateSeed,
   type Paths,
   type Transport,
 } from './drive-bootstrap-inspect';
+import { inspectBootstrap } from './drive-bootstrap-access';
 import { executePlan } from './drive-bootstrap-exec';
 import {
   configuredId,
@@ -52,17 +61,12 @@ function parseFlags(argv: readonly string[]): Flags {
     '--skip-key',
     '--github',
     '--docs-workflows',
-    '--key-role',
   ];
   const unknown = argv.filter(
-    (arg, index) =>
-      arg.startsWith('--') &&
-      !known.includes(arg) &&
-      argv[index - 1] !== '--key-role',
+    (arg) => arg.startsWith('--') && !known.includes(arg),
   );
   if (unknown.length > 0)
     throw new Error(`Unknown flag(s): ${unknown.join(' ')}`);
-  const roleAt = argv.indexOf('--key-role');
   return {
     dryRun: argv.includes('--dry-run'),
     check: argv.includes('--check'),
@@ -70,7 +74,6 @@ function parseFlags(argv: readonly string[]): Flags {
     skipKey: argv.includes('--skip-key'),
     github: argv.includes('--github'),
     docsWorkflows: argv.includes('--docs-workflows'),
-    keyRole: roleAt === -1 ? 'member' : (argv[roleAt + 1] ?? 'member'),
   };
 }
 
@@ -86,8 +89,9 @@ function offlineState(
     ),
   );
   const driveId = config.pagespace.driveId;
+  const unknown = { workflows: new Set<string>(), agentKeyValid: null };
   if (driveId === null)
-    return { drive: null, nodes: {}, env, workflows: new Set() };
+    return { drive: null, nodes: {}, env, agentRole: null, ...unknown };
   const nodes = Object.fromEntries(
     manifest.nodes.flatMap((node) => {
       const id = configuredId(config, node);
@@ -98,18 +102,23 @@ function offlineState(
     drive: { id: driveId, drivePrompt: 'unverified', homePageId: null },
     nodes,
     env,
-    workflows: new Set(),
+    agentRole: null,
+    ...unknown,
   };
 }
 
-function liveTransport(apiUrl: string, token: string): Transport {
+function liveTransport(
+  apiUrl: string,
+  token: string,
+  tokenName = 'PAGESPACE_BOOTSTRAP_TOKEN',
+): Transport {
   return {
     api: async <T>(
       method: string,
       path: string,
       body?: unknown,
     ): Promise<T> => {
-      if (token === '') throw new Error('PAGESPACE_BOOTSTRAP_TOKEN is not set');
+      if (token === '') throw new Error(`${tokenName} is not set`);
       const response = await fetch(new URL(path, apiUrl), {
         method,
         headers: {
@@ -153,6 +162,19 @@ function liveTransport(apiUrl: string, token: string): Transport {
     writeText: (path, text) => writeFileSync(path, text),
     log: (line) => console.log(line),
   };
+}
+
+/** A read-only transport authenticated as `.env`'s agent key, when it has one. */
+function agentKeyTransport(
+  config: ProjectConfig,
+  envText: string,
+): Transport | null {
+  const token = parseDotenv(envText).PAGESPACE_TOKEN ?? '';
+  return token === ''
+    ? null
+    : readOnly(
+        liveTransport(config.pagespace.apiUrl, token, 'PAGESPACE_TOKEN'),
+      );
 }
 
 const TOKEN_HELP =
@@ -214,13 +236,11 @@ async function main(
   const envText = transport.readText(paths.env) ?? '';
   const inspected =
     live && config.pagespace.driveId !== null
-      ? await inspectDrive(
-          config,
-          manifest,
-          transport,
+      ? await inspectBootstrap(config, manifest, transport, {
           envText,
-          flags.docsWorkflows,
-        )
+          withWorkflows: flags.docsWorkflows,
+          agentKey: agentKeyTransport(config, envText),
+        })
       : { state: offlineState(config, manifest, envText), problems: [] };
   if (flags.check) {
     console.log(checkReport(inspected.problems));
@@ -235,15 +255,11 @@ async function main(
     console.log('Dry run: nothing was created, written or minted.');
     return 0;
   }
-  const existing = Object.fromEntries(
-    Object.entries(inspected.state.nodes).map(([ref, node]) => [ref, node.id]),
-  );
   await executePlan(actions, {
     manifest,
     transport,
     paths,
-    existing,
-    driveId: inspected.state.drive?.id ?? null,
+    state: inspected.state,
   });
   console.log(
     'drive:bootstrap done. Verify with `bun drive:bootstrap --check`.',

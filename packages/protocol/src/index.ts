@@ -27,3 +27,9 @@ export {
   ticketSchema,
 } from './realtime';
 export type { PresenceActivity, PresenceStatus } from './realtime';
+export {
+  capabilities,
+  capabilityMetadata,
+  resourceKinds,
+} from './authorization';
+export type { Capability, DenyReason, ResourceKind } from './authorization';

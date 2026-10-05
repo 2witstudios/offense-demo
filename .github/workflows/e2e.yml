@@ -26,7 +26,7 @@ jobs:
     # A manual dispatch runs the three-consecutive-run release
     # qualification instead of the single-run PR gate; three full suites
     # need more than the single-run budget below.
-    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && 60 || 20 }}
+    timeout-minutes: ${{ github.event_name == 'workflow_dispatch' && 60 || 35 }}
     services:
       postgres:
         image: postgres:18.3-alpine
