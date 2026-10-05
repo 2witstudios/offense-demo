@@ -98,6 +98,11 @@ inventory becomes the single index:
   tombstones the user (below). Domain records that reference a user are
   retained only when they hold no personal fields; each domain table states
   its own retention in the inventory.
+- **Projects**: a `projects` row (`name` is personal/private, `owner_user_id`
+  an identifier) is kept for the life of the account. Erasure deletes the
+  account's project rows in the tombstone transaction once erasure is
+  built; until then nothing removes them, since the owner foreign key's
+  cascade fires only on a hard delete of `users`, which erasure never does.
 - **Sessions**: an expired `session` row (`ip_address` and `user_agent`
   travel with it) is purged 24 hours after `expires_at`, the same grace and
   the same sweep as `verification`. A revoked session is deleted
