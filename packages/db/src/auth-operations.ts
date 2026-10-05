@@ -6,7 +6,7 @@ import { users } from './schema/users';
 import { instrumented, type DatabaseEventSink } from './instrumented';
 import { appendSessionRevokedFor } from './session-revoked';
 import { deleteExpiredBatch, type RetentionBatch } from './retention';
-import { isUniqueViolation } from './unique-violation';
+import { isUniqueViolation } from './sql-state';
 
 /** What an email-change completion did; `stale` changed nothing. */
 export type EmailChangeCompletion = 'changed' | 'stale';
