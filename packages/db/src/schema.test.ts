@@ -1,8 +1,10 @@
 import { assert, describe, setupRitewayBun, test } from 'riteway/bun';
-import { getTableConfig, type PgTable } from 'drizzle-orm/pg-core';
+import { getTableConfig, PgDialect, type PgTable } from 'drizzle-orm/pg-core';
+import { oneOf } from './schema/columns';
 import { sessions } from './schema/auth';
 import { emailDeliveries } from './schema/email-delivery';
 import { outbox } from './schema/outbox';
+import { projects, projectStatuses } from './schema/projects';
 import { users } from './schema/users';
 
 setupRitewayBun();
@@ -91,6 +93,45 @@ describe('platform schema rules', () => {
         ],
         uniques: [],
         namedKeys: [],
+      },
+    });
+  });
+
+  test('projects carry the status vocabulary, the version rule and the owner index (PROJ-1.1)', () => {
+    const config = getTableConfig(projects);
+    const dialect = new PgDialect();
+    const statusCheck = config.checks.find(
+      (check) => check.name === 'projects_status_check',
+    );
+    const ownerIndex = config.indexes.find(
+      (index) => index.config.name === 'projects_owner_user_id_idx',
+    );
+    assert({
+      given: 'the projects table',
+      should:
+        'declare projects_status_check built with oneOf over the schema vocabulary, projects_version_positive and a full owner_user_id index',
+      actual: {
+        ...rules(projects),
+        statusVocabulary: projectStatuses,
+        statusCheckSql:
+          statusCheck && dialect.sqlToQuery(statusCheck.value).sql,
+        ownerIndex: ownerIndex && {
+          columns: ownerIndex.config.columns.map(
+            (column) => (column as { name: string }).name,
+          ),
+          partial: ownerIndex.config.where !== undefined,
+        },
+      },
+      expected: {
+        checks: ['projects_status_check', 'projects_version_positive'],
+        indexes: ['projects_owner_user_id_idx'],
+        uniques: [],
+        namedKeys: [],
+        statusVocabulary: ['active', 'archived'],
+        statusCheckSql: dialect.sqlToQuery(
+          oneOf(projects.status, projectStatuses),
+        ).sql,
+        ownerIndex: { columns: ['owner_user_id'], partial: false },
       },
     });
   });

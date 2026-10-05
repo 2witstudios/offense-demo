@@ -69,4 +69,25 @@ describe('the migration history (ISSUE-6)', () => {
       expected: { orm: '1.0.0-rc.4', kit: '1.0.0-rc.4' },
     });
   });
+
+  test('adds projects in exactly one forward migration after the baseline (PROJ-1.1)', async () => {
+    const folders = (await readdir(migrations)).sort();
+    const creators = (
+      await Promise.all(
+        folders.map(async (folder) => ({
+          folder,
+          sql: await Bun.file(`${migrations}${folder}/migration.sql`).text(),
+        })),
+      )
+    )
+      .filter(({ sql }) => /create table "projects"/i.test(sql))
+      .map(({ folder }) => folders.indexOf(folder));
+    assert({
+      given: 'every committed migration',
+      should:
+        'create the projects table in exactly one folder, a forward migration after the baseline',
+      actual: { count: creators.length, afterBaseline: creators[0]! > 0 },
+      expected: { count: 1, afterBaseline: true },
+    });
+  });
 });
