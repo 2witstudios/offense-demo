@@ -239,7 +239,7 @@ export function applyRefusal(input: {
   if (input.login !== input.owner)
     return `Only the owner (${input.owner}) applies; gh is authenticated as ${input.login ?? 'nobody'}.`;
   return input.appId === undefined
-    ? 'Set the Actions variable REVIEW_RECORD_APP_ID to the review-record App id first (GRD-6.2).'
+    ? 'Set up the review-record App first: bun github:review-app (it sets the Actions variable REVIEW_RECORD_APP_ID).'
     : undefined;
 }
 
@@ -247,11 +247,15 @@ export function applyRefusal(input: {
 
 const root = resolve(import.meta.dir, '..');
 
-function gh(args: readonly string[]): {
-  code: number;
-  stdout: string;
-  stderr: string;
-} {
+export type GhResult = {
+  readonly code: number;
+  readonly stdout: string;
+  readonly stderr: string;
+};
+/** Runs `gh <args>`; injected so the tests never reach GitHub. */
+export type Gh = (args: readonly string[]) => GhResult;
+
+const realGh: Gh = (args) => {
   const result = Bun.spawnSync(['gh', ...args], {
     stdout: 'pipe',
     stderr: 'pipe',
@@ -261,7 +265,7 @@ function gh(args: readonly string[]): {
     stdout: result.stdout.toString(),
     stderr: result.stderr.toString(),
   };
-}
+};
 
 /** The failure message for a non-zero gh exit: the command, and gh's own reason when it gave one. */
 export function ghFailure(args: readonly string[], stderr: string): string {
@@ -271,15 +275,42 @@ export function ghFailure(args: readonly string[], stderr: string): string {
     : `gh ${args.join(' ')} failed`;
 }
 
-function ghJson<T>(args: readonly string[]): T {
-  const result = gh(args);
-  if (result.code !== 0) throw new Error(ghFailure(args, result.stderr));
-  return JSON.parse(result.stdout) as T;
+/**
+ * GitHub's answer when rulesets are a paid feature for this repository: a
+ * private repository on a free plan gets HTTP 403 "Upgrade to GitHub Pro or
+ * make this repository public to enable this feature."
+ */
+export const rulesetsNeedUpgrade = (stderr: string): boolean =>
+  /upgrade to github (pro|team)|make this repository public/i.test(stderr);
+
+class RulesetsUnavailable extends Error {}
+
+/** Why --apply cannot work here, and the two ways out. */
+export function rulesetsUnavailableMessage(
+  repository: string,
+  plan: string | undefined,
+): string {
+  return [
+    `Branch rulesets are not available on ${repository}: GitHub enforces them only on public repositories or on a paid plan (your GitHub plan: ${plan ?? 'unknown'}).`,
+    'Nothing was applied, so the required checks and the review-record merge gate are NOT enforced. Either:',
+    `  - make the repository public: gh repo edit ${repository} --visibility public --accept-visibility-change-consequences`,
+    '  - or upgrade the owner to GitHub Pro (organizations: GitHub Team),',
+    'then run `bun github:rules --apply` again.',
+  ].join('\n');
 }
 
-function readLive(config: RepositoryConfig) {
+function ghJson<T>(gh: Gh, args: readonly string[]): T {
+  const result = gh(args);
+  if (result.code === 0) return JSON.parse(result.stdout) as T;
+  const failure = ghFailure(args, result.stderr);
+  if (rulesetsNeedUpgrade(result.stderr))
+    throw new RulesetsUnavailable(failure);
+  throw new Error(failure);
+}
+
+function readLive(gh: Gh, config: RepositoryConfig) {
   const repo = `repos/${config.repository}`;
-  const summary = ghJson<{ id: number; name: string }[]>([
+  const summary = ghJson<{ id: number; name: string }[]>(gh, [
     'api',
     `${repo}/rulesets`,
   ]).find((ruleset) => ruleset.name === config.ruleset.name);
@@ -294,22 +325,28 @@ function readLive(config: RepositoryConfig) {
     appId: variable.code === 0 && Number.isInteger(appId) ? appId : undefined,
     live: {
       ruleset: summary
-        ? ghJson<Ruleset & { id: number }>([
+        ? ghJson<Ruleset & { id: number }>(gh, [
             'api',
             `${repo}/rulesets/${summary.id}`,
           ])
         : undefined,
-      settings: ghJson<Settings>(['api', repo]),
+      settings: ghJson<Settings>(gh, ['api', repo]),
     } satisfies LiveState,
   };
 }
 
-function apply(config: RepositoryConfig, appId: number, live: LiveState) {
+function apply(
+  gh: Gh,
+  config: RepositoryConfig,
+  appId: number,
+  live: LiveState,
+) {
   const repo = `repos/${config.repository}`;
   const file = join(tmpdir(), `github-rules-${process.pid}.json`);
   writeFileSync(file, JSON.stringify(desiredRuleset(config, appId)));
   try {
     ghJson(
+      gh,
       live.ruleset
         ? [
             'api',
@@ -324,7 +361,7 @@ function apply(config: RepositoryConfig, appId: number, live: LiveState) {
   } finally {
     rmSync(file, { force: true });
   }
-  ghJson([
+  ghJson(gh, [
     'api',
     '-X',
     'PATCH',
@@ -336,10 +373,20 @@ function apply(config: RepositoryConfig, appId: number, live: LiveState) {
   ]);
 }
 
-function report(config: RepositoryConfig) {
-  const { appId, live } = readLive(config);
+export type RunInput = {
+  readonly config: RepositoryConfig;
+  readonly gh: Gh;
+  readonly apply: boolean;
+  readonly autonomous: boolean;
+  readonly out: (text: string) => void;
+  readonly err: (text: string) => void;
+};
+
+function report(input: RunInput) {
+  const { config } = input;
+  const { appId, live } = readLive(input.gh, config);
   const plan = planRules({ config, appId: appId ?? 0, live });
-  process.stdout.write(
+  input.out(
     [
       `github:rules ${config.repository} (review-record App: ${appId ?? 'REVIEW_RECORD_APP_ID unset'})`,
       ...(plan.changes.length === 0
@@ -351,6 +398,43 @@ function report(config: RepositoryConfig) {
   return { appId, live, plan };
 }
 
+function diffAndApply(input: RunInput): number {
+  const { appId, live, plan } = report(input);
+  if (!input.apply || plan.actions.length === 0) return 0;
+  const refusal = applyRefusal({
+    autonomous: input.autonomous,
+    login:
+      input.gh(['api', 'user', '--jq', '.login']).stdout.trim() || undefined,
+    owner: input.config.owner,
+    appId,
+  });
+  if (refusal) {
+    input.err(`${refusal}\n`);
+    return 1;
+  }
+  apply(input.gh, input.config, appId ?? 0, live);
+  input.out(`applied: ${plan.actions.join(', ')}\n`);
+  report(input);
+  return 0;
+}
+
+/** The dry run (and with `apply`, the apply); returns the exit code. */
+export function runGithubRules(input: RunInput): number {
+  try {
+    return diffAndApply(input);
+  } catch (error) {
+    if (!(error instanceof RulesetsUnavailable)) throw error;
+    const plan = input.gh(['api', 'user', '--jq', '.plan.name']);
+    input.err(
+      `${error.message}\n\n${rulesetsUnavailableMessage(
+        input.config.repository,
+        plan.code === 0 ? plan.stdout.trim() || undefined : undefined,
+      )}\n`,
+    );
+    return 1;
+  }
+}
+
 if (import.meta.main) {
   const config = renderRepositoryConfig(
     (await Bun.file(
@@ -358,20 +442,14 @@ if (import.meta.main) {
     ).json()) as RepositoryPolicy,
     loadProjectConfig(root),
   );
-  const { appId, live, plan } = report(config);
-  if (process.argv.includes('--apply') && plan.actions.length > 0) {
-    const refusal = applyRefusal({
+  process.exit(
+    runGithubRules({
+      config,
+      gh: realGh,
+      apply: process.argv.includes('--apply'),
       autonomous: sessionIsAgent(process.env),
-      login: gh(['api', 'user', '--jq', '.login']).stdout.trim() || undefined,
-      owner: config.owner,
-      appId,
-    });
-    if (refusal) {
-      process.stderr.write(`${refusal}\n`);
-      process.exit(1);
-    }
-    apply(config, appId ?? 0, live);
-    process.stdout.write(`applied: ${plan.actions.join(', ')}\n`);
-    report(config);
-  }
+      out: (text) => process.stdout.write(text),
+      err: (text) => process.stderr.write(text),
+    }),
+  );
 }

@@ -24,8 +24,9 @@ concurrency:
   group: review-record-${{ github.event.pull_request.number || github.event.issue.number || github.event.client_payload.pr || inputs.pr }}
   cancel-in-progress: false
 jobs:
-  # Until the owner creates the review-record App (GRD-6.2), verify is
-  # skipped with a notice instead of failing red on every PR. The gate never
+  # Until the owner runs `bun github:review-app` (which sets the id only
+  # once the App is installed), verify is skipped with a notice instead of
+  # failing red on every PR. The gate never
   # sets a status, so nothing reports success without a verified record.
   gate:
     name: Check the review-record App is configured

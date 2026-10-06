@@ -21,6 +21,54 @@ Nobody sets that status by hand. The owner may merge before the record
 exists. The merged tasks then wait in **Merged** until the record grants
 Done.
 
+## Setting up the review-record App
+
+`bun github:review-app` (owner only; the wizard offers it right after the
+first push) sets the gate up with the two browser clicks GitHub requires.
+`--dry-run` prints every step; `--name <app name>` overrides the default
+`<repo>-review-record` (at most 34 characters, tagged with random hex when
+that name is taken).
+
+1. It serves a one-shot page on `127.0.0.1` that posts an App manifest to
+   GitHub (your account's App settings, or the organization's when an
+   organization owns the repository). You click **Create GitHub App**.
+2. GitHub redirects back to `127.0.0.1/callback` with a code and the run's
+   random `state` (any other state is refused). The code is exchanged with
+   `POST /app-manifests/{code}/conversions` for the App id, slug and
+   private key. The key is held in memory only: never printed, logged or
+   passed as an argument.
+3. It limits the `review-record` environment to `main` and stores the key
+   there as the `REVIEW_RECORD_APP_KEY` secret (`gh secret set`, key on
+   stdin), so no workflow on another branch can read it. On a private
+   repository without a paid plan GitHub has no environments; the key then
+   becomes a repository secret and the command says why that is weaker.
+4. It opens the App's install page. You click **Install** on this
+   repository. It polls `GET /repos/{repo}/installation` as the App (an
+   RS256 JWT signed with the key) for up to ten minutes.
+5. Only once the App is installed does it set the `REVIEW_RECORD_APP_ID`
+   variable. The workflow's gate job enforces only when both exist, so an
+   interrupted run leaves PRs skipping with a notice, never failing red.
+6. It runs `bun github:rules --apply` so `review-record` is a required
+   check from this App, or, on a private repository on a free plan,
+   explains why GitHub will not enforce it.
+
+The App asks for exactly what the workflow's token is minted with, and
+nothing else (`REVIEW_APP_PERMISSIONS` in
+`scripts/github-review-app-plan.ts`; a test pins them to the
+`permission-*` inputs of `.github/workflows/review-record.yml`):
+
+| Permission            | Used by                                                  |
+| --------------------- | -------------------------------------------------------- |
+| `statuses: write`     | setting the `review-record` commit status on the PR head |
+| `pull_requests: read` | reading the PR's live head SHA and its `Builder:` line   |
+| `issues: read`        | reading the PR comments that link the record             |
+| `metadata: read`      | granted to every App                                     |
+
+It has no webhook and subscribes to no events. Rerunning is safe: when
+the id variable and the key secret both exist it reports and stops;
+`--force` creates a new App (delete the old one under the owner's
+**Settings → Developer settings → GitHub Apps**).
+
 **Self-check before posting the verdict.** After publishing the
 record, run `bun review:check <recordPageId> --pr <n> --dispatch` and fix the
 record until it passes, before posting the verdict comment. It runs the same
