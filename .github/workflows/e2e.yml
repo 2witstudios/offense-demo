@@ -146,7 +146,7 @@ jobs:
       # be proven clean, so it must not leave the runner.
       - name: Upload browser artifacts
         if: ${{ failure() && steps.sanitize.outcome == 'success' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: e2e-artifacts-${{ github.run_id }}
           path: |
@@ -159,7 +159,7 @@ jobs:
       # itself: upload it on success too, not only on failure.
       - name: Upload release-qualification report
         if: ${{ !cancelled() && github.event_name == 'workflow_dispatch' && steps.sanitize.outcome == 'success' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: e2e-qualification-${{ github.run_id }}
           path: apps/web/qualification-results/
